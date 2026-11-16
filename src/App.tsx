@@ -33,7 +33,12 @@ export default function App() {
 
   const owned = useMemo(() => closet.items.filter((item) => !item.wishlist), [closet.items])
   const wanted = useMemo(() => closet.items.filter((item) => item.wishlist), [closet.items])
-  const wantedTotal = wanted.reduce((sum, item) => sum + (item.price ?? 0), 0)
+  const wantedTotal = useMemo(() => {
+    const priced = wanted.filter((item) => item.price !== undefined)
+    const currencies = new Set(priced.map((item) => item.currency ?? 'USD'))
+    if (currencies.size !== 1) return undefined
+    return formatPrice(priced.reduce((sum, item) => sum + (item.price ?? 0), 0), [...currencies][0])
+  }, [wanted])
 
   const counts = useMemo(() => {
     const result = new Map<string, number>()
@@ -70,7 +75,7 @@ export default function App() {
               ? `${owned.length} ${owned.length === 1 ? 'item' : 'items'}`
               : tab === 'outfits'
                 ? `${closet.outfits.length} ${closet.outfits.length === 1 ? 'outfit' : 'outfits'}`
-                : `${wanted.length} ${wanted.length === 1 ? 'item' : 'items'}${wantedTotal ? ` · ${formatPrice(wantedTotal, wanted.find((item) => item.price)?.currency)}` : ''}`}
+                : `${wanted.length} ${wanted.length === 1 ? 'item' : 'items'}${wantedTotal ? ` · ${wantedTotal}` : ''}`}
             {closet.syncStatus === 'error' && ' · sync paused'}
           </p>
         </div>
