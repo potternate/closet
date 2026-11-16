@@ -36,6 +36,7 @@ export interface Item {
   seasons: Season[]
   url?: string
   notes?: string
+  wears?: string[]
   image?: { id: string; type: 'image/png' | 'image/jpeg'; path?: string }
   createdAt: number
   updatedAt: number

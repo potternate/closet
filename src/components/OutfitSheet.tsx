@@ -3,6 +3,7 @@ import { sortForOutfit, type Outfit } from '../lib/outfits'
 import type { Item } from '../lib/types'
 import { ItemImage } from './ItemImage'
 import { OutfitCollage } from './OutfitCollage'
+import { WearRow } from './ItemSheet'
 
 interface Props {
   outfit: Outfit
@@ -10,9 +11,10 @@ interface Props {
   onEdit: () => void
   onDelete: () => void
   onOpenItem: (item: Item) => void
+  onToggleWorn: (worn: boolean) => void
 }
 
-export function OutfitSheet({ outfit, items, onEdit, onDelete, onOpenItem }: Props) {
+export function OutfitSheet({ outfit, items, onEdit, onDelete, onOpenItem, onToggleWorn }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const pieces = sortForOutfit(items)
   const missing = outfit.itemIds.length - pieces.length
@@ -36,6 +38,8 @@ export function OutfitSheet({ outfit, items, onEdit, onDelete, onOpenItem }: Pro
           </button>
         ))}
       </div>
+
+      <WearRow item={outfit} onToggle={onToggleWorn} />
 
       {outfit.notes && <p className="mt-3 rounded-xl bg-stone-50 px-3.5 py-2.5 text-sm whitespace-pre-wrap text-stone-700">{outfit.notes}</p>}
 

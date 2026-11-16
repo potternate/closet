@@ -13,6 +13,7 @@ import { OutfitSheet } from './components/OutfitSheet'
 import { OutfitsView } from './components/OutfitsView'
 import { Sheet } from './components/Sheet'
 import { shuffleOutfit, type Outfit } from './lib/outfits'
+import { dayKey, SORTS, sortItemsBy, wearCount, wornLabel, type SortKey } from './lib/wear'
 
 export default function App() {
   const auth = useAuth()
@@ -25,6 +26,7 @@ export default function App() {
   const [adding, setAdding] = useState(false)
   const [openId, setOpenId] = useState<string>()
   const [showAccount, setShowAccount] = useState(false)
+  const [sort, setSort] = useState<SortKey>('newest')
   const [tab, setTab] = useState<'closet' | 'outfits'>('closet')
   const [openOutfitId, setOpenOutfitId] = useState<string>()
   const [outfitEditor, setOutfitEditor] = useState<{ existing?: Outfit; initialIds?: string[] }>()
@@ -37,18 +39,19 @@ export default function App() {
 
   const visible = useMemo(() => {
     const words = query.toLowerCase().split(/\s+/).filter(Boolean)
-    return closet.items.filter((item) => {
+    const matches = closet.items.filter((item) => {
       if (category !== 'All' && item.category !== category) return false
       if (color && item.color !== color) return false
       if (season && !item.seasons.includes(season)) return false
       const haystack = [item.name, item.brand, item.category, item.color, item.notes, item.size].join(' ').toLowerCase()
       return words.every((word) => haystack.includes(word))
     })
-  }, [category, closet.items, color, query, season])
+    return sortItemsBy(matches, sort)
+  }, [category, closet.items, color, query, season, sort])
 
   const openItem = closet.items.find((item) => item.id === openId)
   const usedColors = COLORS.filter((candidate) => closet.items.some((item) => item.color === candidate.name))
-  const filtersActive = Boolean(color || season)
+  const filtersActive = Boolean(color || season) || sort !== 'newest'
 
   const byId = new Map(closet.items.map((item) => [item.id, item]))
   const openOutfit = closet.outfits.find((outfit) => outfit.id === openOutfitId)
@@ -118,6 +121,14 @@ export default function App() {
                   <span className="text-sm text-stone-400">No colors yet</span>
                 )}
               </div>
+              <div className="mt-3 text-xs font-semibold tracking-wide text-stone-400 uppercase">Sort</div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {SORTS.map(([key, label]) => (
+                  <Chip key={key} active={sort === key} onClick={() => setSort(key)}>
+                    {label}
+                  </Chip>
+                ))}
+              </div>
               <div className="mt-3 text-xs font-semibold tracking-wide text-stone-400 uppercase">Season</div>
               <div className="mt-2 flex flex-wrap gap-2">
                 {SEASONS.map((candidate) => (
@@ -131,10 +142,11 @@ export default function App() {
                   onClick={() => {
                     setColor(undefined)
                     setSeason(undefined)
+                    setSort('newest')
                   }}
                   className="mt-3 text-sm font-semibold text-stone-500"
                 >
-                  Clear filters
+                  Reset
                 </button>
               )}
             </div>
@@ -168,7 +180,7 @@ export default function App() {
       ) : (
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
           {visible.map((item) => (
-            <ItemCard key={item.id} item={item} onOpen={() => setOpenId(item.id)} />
+            <ItemCard key={item.id} item={item} detail={sort === 'newest' ? undefined : wearDetail(item)} onOpen={() => setOpenId(item.id)} />
           ))}
         </div>
       )}
@@ -205,7 +217,13 @@ export default function App() {
 
       {adding && <AddSheet onClose={() => setAdding(false)} onSave={(draft, image) => closet.saveItem(draft, image)} />}
       {openItem && (
-        <ItemSheet item={openItem} onClose={() => setOpenId(undefined)} onSave={closet.saveItem} onDelete={closet.deleteItem} />
+        <ItemSheet
+          item={openItem}
+          onClose={() => setOpenId(undefined)}
+          onSave={closet.saveItem}
+          onDelete={closet.deleteItem}
+          onToggleWorn={(worn) => closet.setWorn([openItem.id], dayKey(), worn)}
+        />
       )}
       {outfitEditor && (
         <Sheet onClose={() => setOutfitEditor(undefined)}>
@@ -233,6 +251,7 @@ export default function App() {
               setOpenOutfitId(undefined)
             }}
             onOpenItem={(item) => setOpenId(item.id)}
+            onToggleWorn={(worn) => closet.setWorn(openOutfit.itemIds, dayKey(), worn, openOutfit.id)}
           />
         </Sheet>
       )}
@@ -253,7 +272,12 @@ export default function App() {
   )
 }
 
-function ItemCard({ item, onOpen }: { item: Item; onOpen: () => void }) {
+function wearDetail(item: Item) {
+  const count = wearCount(item)
+  return count ? `${count}× · ${wornLabel(item.wears).replace(/^Worn /, '')}` : 'Never worn'
+}
+
+function ItemCard({ item, detail, onOpen }: { item: Item; detail?: string; onOpen: () => void }) {
   return (
     <button onClick={onOpen} className="group overflow-hidden rounded-2xl bg-white text-left shadow-sm ring-1 ring-stone-200/70 active:scale-[0.98]">
       <div className="aspect-[4/5] bg-stone-100/70">
@@ -261,7 +285,7 @@ function ItemCard({ item, onOpen }: { item: Item; onOpen: () => void }) {
       </div>
       <div className="px-3 py-2.5">
         <div className="truncate text-sm font-semibold text-stone-900">{item.name}</div>
-        <div className="truncate text-xs text-stone-500">{item.brand ?? item.category}</div>
+        <div className="truncate text-xs text-stone-500">{detail ?? item.brand ?? item.category}</div>
       </div>
     </button>
   )
