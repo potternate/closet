@@ -6,14 +6,15 @@ import { AccountSheet } from './components/AccountSheet'
 import { AddSheet } from './components/AddSheet'
 import { Chip, Swatch } from './components/Chips'
 import { ItemImage } from './components/ItemImage'
+import { StatsView } from './components/StatsView'
 import { ItemSheet } from './components/ItemSheet'
-import { HangerIcon, HeartIcon, LayersIcon, PlusIcon, SearchIcon, SlidersIcon, UserIcon } from './components/icons'
+import { ChartIcon, HangerIcon, HeartIcon, LayersIcon, PlusIcon, SearchIcon, SlidersIcon, UserIcon } from './components/icons'
 import { OutfitEditor } from './components/OutfitEditor'
 import { OutfitSheet } from './components/OutfitSheet'
 import { OutfitsView } from './components/OutfitsView'
 import { Sheet } from './components/Sheet'
 import { shuffleOutfit, type Outfit } from './lib/outfits'
-import { dayKey, SORTS, sortItemsBy, wearCount, wornLabel, type SortKey } from './lib/wear'
+import { dayKey, groupItems, SORTS, sortItemsBy, wearCount, wornLabel, type SortKey } from './lib/wear'
 
 export default function App() {
   const auth = useAuth()
@@ -27,7 +28,7 @@ export default function App() {
   const [openId, setOpenId] = useState<string>()
   const [showAccount, setShowAccount] = useState(false)
   const [sort, setSort] = useState<SortKey>('newest')
-  const [tab, setTab] = useState<'closet' | 'outfits' | 'wishlist'>('closet')
+  const [tab, setTab] = useState<'closet' | 'outfits' | 'wishlist' | 'stats'>('closet')
   const [openOutfitId, setOpenOutfitId] = useState<string>()
   const [outfitEditor, setOutfitEditor] = useState<{ existing?: Outfit; initialIds?: string[] }>()
 
@@ -69,9 +70,9 @@ export default function App() {
     <div className="mx-auto min-h-dvh max-w-3xl px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-[calc(env(safe-area-inset-bottom)+10rem)]">
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-stone-900">{tab === 'closet' ? 'Closet' : tab === 'outfits' ? 'Outfits' : 'Wishlist'}</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-stone-900">{{ closet: 'Closet', outfits: 'Outfits', wishlist: 'Wishlist', stats: 'Stats' }[tab]}</h1>
           <p className="text-sm text-stone-500">
-            {tab === 'closet'
+            {tab === 'closet' || tab === 'stats'
               ? `${owned.length} ${owned.length === 1 ? 'item' : 'items'}`
               : tab === 'outfits'
                 ? `${closet.outfits.length} ${closet.outfits.length === 1 ? 'outfit' : 'outfits'}`
@@ -176,7 +177,9 @@ export default function App() {
         </>
       )}
 
-      {tab === 'wishlist' ? (
+      {tab === 'stats' ? (
+        <StatsView items={owned} outfits={closet.outfits} onOpen={(item) => setOpenId(item.id)} />
+      ) : tab === 'wishlist' ? (
         wanted.length ? (
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
             {wanted.map((item) => (
@@ -205,14 +208,23 @@ export default function App() {
       ) : visible.length === 0 ? (
         <p className="mt-16 text-center text-stone-400">Nothing matches.</p>
       ) : (
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {visible.map((item) => (
-            <ItemCard key={item.id} item={item} detail={sort === 'newest' ? undefined : wearDetail(item)} onOpen={() => setOpenId(item.id)} />
-          ))}
-        </div>
+        groupItems(visible, sort).map((group) => (
+          <section key={group.label || 'all'}>
+            {group.label && (
+              <h2 className="mt-5 mb-[-4px] text-sm font-semibold text-stone-500">
+                {group.label} <span className="text-stone-400">{group.items.length}</span>
+              </h2>
+            )}
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {group.items.map((item) => (
+                <ItemCard key={item.id} item={item} detail={sort.endsWith('worn') ? wearDetail(item) : undefined} onOpen={() => setOpenId(item.id)} />
+              ))}
+            </div>
+          </section>
+        ))
       )}
 
-      {(tab !== 'outfits' || owned.length > 0) && (
+      {tab !== 'stats' && (tab !== 'outfits' || owned.length > 0) && (
         <button
           onClick={() => (tab === 'outfits' ? setOutfitEditor({}) : setAdding(true))}
           className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full bg-stone-900 py-3.5 pr-6 pl-5 font-semibold text-stone-50 shadow-xl shadow-stone-900/25 active:scale-95"
@@ -228,6 +240,7 @@ export default function App() {
               ['closet', 'Closet', HangerIcon],
               ['outfits', 'Outfits', LayersIcon],
               ['wishlist', 'Wishlist', HeartIcon],
+              ['stats', 'Stats', ChartIcon],
             ] as const
           ).map(([id, label, Icon]) => (
             <button

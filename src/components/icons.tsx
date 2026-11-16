@@ -70,3 +70,8 @@ export const HeartIcon = ({ className = 'h-5 w-5' }: { className?: string }) => 
     <path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20Z" />
   </svg>
 )
+export const ChartIcon = ({ className = 'h-5 w-5' }: { className?: string }) => (
+  <svg {...base} className={className}>
+    <path d="M4 20h16M7 16v-5M12 16V6M17 16v-8" />
+  </svg>
+)

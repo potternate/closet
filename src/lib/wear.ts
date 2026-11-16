@@ -1,4 +1,4 @@
-import type { Item } from './types'
+import { COLORS, type Item } from './types.ts'
 
 export const dayKey = (date = new Date()) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
@@ -33,6 +33,8 @@ export const SORTS = [
   ['least-worn', 'Least worn'],
   ['most-worn', 'Most worn'],
   ['recently-worn', 'Recently worn'],
+  ['brand', 'Brand'],
+  ['color', 'Color'],
 ] as const
 
 export type SortKey = (typeof SORTS)[number][0]
@@ -44,6 +46,32 @@ export function sortItemsBy(items: Item[], key: SortKey) {
     'least-worn': (a, b) => wearCount(a) - wearCount(b) || last(a).localeCompare(last(b)),
     'most-worn': (a, b) => wearCount(b) - wearCount(a) || last(b).localeCompare(last(a)),
     'recently-worn': (a, b) => last(b).localeCompare(last(a)),
+    brand: (a, b) => sortable(a.brand?.trim() || NO_BRAND).localeCompare(sortable(b.brand?.trim() || NO_BRAND)),
+    color: (a, b) => colorRank(a) - colorRank(b),
   }
   return [...items].sort((a, b) => compare[key](a, b) || b.createdAt - a.createdAt)
+}
+
+const NO_BRAND = 'No brand'
+const sortable = (label: string) => (label === NO_BRAND ? '\uffff' : label.toLowerCase())
+const colorRank = (item: Item) => {
+  const index = COLORS.findIndex((color) => color.name === item.color)
+  return index === -1 ? COLORS.length : index
+}
+
+export function groupLabel(item: Item, key: SortKey) {
+  if (key === 'brand') return item.brand?.trim() || NO_BRAND
+  if (key === 'color') return item.color ?? 'No color'
+  return undefined
+}
+
+export function groupItems(items: Item[], key: SortKey) {
+  const groups: { label: string; items: Item[] }[] = []
+  for (const item of items) {
+    const label = groupLabel(item, key) ?? ''
+    const last = groups.at(-1)
+    if (last?.label.toLowerCase() === label.toLowerCase()) last.items.push(item)
+    else groups.push({ label, items: [item] })
+  }
+  return groups
 }

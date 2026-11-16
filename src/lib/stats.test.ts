@@ -1,0 +1,40 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import { closetStats } from './stats.ts'
+import type { Item } from './types.ts'
+
+const item = (id: string, patch: Partial<Item> = {}): Item => ({ id, name: id, category: 'Tops', seasons: [], createdAt: 0, updatedAt: 0, ...patch })
+
+test('closetStats tallies categories, colors and brands', () => {
+  const stats = closetStats(
+    [
+      item('a', { category: 'Shoes', color: 'Black', brand: 'Nike' }),
+      item('b', { category: 'Tops', color: 'Black', brand: 'Nike ' }),
+      item('c', { category: 'Shoes', color: 'White', brand: '' }),
+    ],
+    [],
+  )
+  assert.deepEqual(stats.categories, [
+    { key: 'Tops', count: 1 },
+    { key: 'Shoes', count: 2 },
+  ])
+  assert.deepEqual(stats.colors[0], { key: 'Black', count: 2 })
+  assert.deepEqual(stats.brands, [{ key: 'Nike', count: 2 }])
+})
+
+test('closetStats sums value in the most common currency and ranks wear', () => {
+  const stats = closetStats(
+    [
+      item('a', { price: 100, currency: 'usd', wears: ['2026-01-01', '2026-01-02'] }),
+      item('b', { price: 30, wears: ['2026-01-01'] }),
+      item('c', { price: 500, currency: 'EUR', wears: ['2026-01-01', '2026-01-02', '2026-01-03'] }),
+      item('d'),
+    ],
+    [],
+  )
+  assert.deepEqual(stats.value, { amount: 130, currency: 'USD', priced: 2 })
+  assert.equal(stats.wears, 6)
+  assert.equal(stats.neverWorn, 1)
+  assert.deepEqual(stats.mostWorn.map((i) => i.id), ['c', 'a', 'b'])
+  assert.deepEqual(stats.bestValue.map((i) => i.id), ['b', 'a'])
+})
