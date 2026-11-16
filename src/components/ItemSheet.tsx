@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { loadLocalImage, type PreparedImage } from '../lib/images'
+import type { PreparedImage } from '../lib/images'
+import { imageBlob } from '../lib/store'
 import { formatPrice, type Draft, type Item } from '../lib/types'
 import { costPerWear, dayKey, wearCount, wornLabel } from '../lib/wear'
 import { Swatch } from './Chips'
@@ -104,10 +105,14 @@ export function ItemSheet({ item, onSave, onDelete, onToggleWorn, onBought, onCl
         disabled={duplicating}
         onClick={async () => {
           setDuplicating(true)
-          const { id: _id, createdAt: _created, updatedAt: _updated, image: _image, wears: _wears, ...draft } = item
-          const blob = item.image ? await loadLocalImage(item.image.id) : undefined
-          await onSave(draft, blob && item.image ? { blob, type: item.image.type } : undefined)
-          onClose()
+          try {
+            const { id: _id, createdAt: _created, updatedAt: _updated, image: _image, wears: _wears, ...draft } = item
+            const blob = item.image ? await imageBlob(item.image) : undefined
+            await onSave(draft, blob && item.image ? { blob, type: item.image.type } : undefined)
+            onClose()
+          } finally {
+            setDuplicating(false)
+          }
         }}
         className="mt-4 w-full rounded-xl bg-stone-100 py-3 text-sm font-semibold text-stone-800 disabled:opacity-50"
       >
