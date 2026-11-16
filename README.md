@@ -18,6 +18,17 @@ Opening `/?add=<link or share text>` opens Add item and imports it straight away
 
 Duplicate it and add `&to=wishlist` to the end for a "Add to Wishlist" version.
 
+## Item API (for agents)
+
+`api/items.ts` exposes a token-authenticated endpoint so an agent (e.g. a "muse") can manage items in your account. Auth is `Authorization: Bearer $MUSE_TOKEN`.
+
+- `GET /api/items` — list items (`{ items: [...] }`)
+- `POST /api/items` — create. Body: item fields (`name` required) plus optional `imageUrl` (downloaded and stored in the private photo bucket).
+- `PATCH /api/items` — update. Body: `{ id, ...fields }`; fields replace those in the item.
+- `DELETE /api/items?id=...` — writes a tombstone so the item deletes on every synced device.
+
+Required environment variables on Vercel: `SUPABASE_SERVICE_ROLE_KEY`, `CLOSET_USER_ID`, `MUSE_TOKEN` (and `SUPABASE_URL` to override the default project). Writes go to `public.closet_items` with the service role, so RLS is untouched and the newest `updated_at` wins merges.
+
 ## Development
 
 ```bash
