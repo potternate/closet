@@ -81,20 +81,51 @@ async function trimTransparent(blob: Blob): Promise<Blob> {
   return toBlob(out, 'image/png')
 }
 
-export async function cutOut(blob: Blob, onProgress?: (fraction: number) => void): Promise<PreparedImage> {
-  const { removeBackground } = await import('@imgly/background-removal')
-  const progress = new Map<string, number>()
-  const result = await removeBackground(blob, {
-    model: 'isnet_quint8',
-    output: { format: 'image/png' },
-    progress: (key, current, total) => {
-      if (!key.startsWith('fetch:')) return
-      progress.set(key, total ? current / total : 0)
-      const values = [...progress.values()]
-      onProgress?.(values.reduce((sum, value) => sum + value, 0) / values.length)
-    },
+// RMBG-1.4 (fp16): keeps garments solid where the old ISNet model left them half-transparent.
+const CUTOUT_MODEL = 'briaai/RMBG-1.4'
+
+type Transformers = typeof import('@huggingface/transformers')
+let segmenter: Promise<{ lib: Transformers; model: any; processor: any }> | undefined
+let reportDownload: ((fraction: number) => void) | undefined
+
+function loadSegmenter() {
+  segmenter ??= (async () => {
+    const lib = await import('@huggingface/transformers')
+    const files = new Map<string, number>()
+    const progress_callback = (event: { status: string; file?: string; loaded?: number; total?: number }) => {
+      if (event.status !== 'progress' || !event.file) return
+      files.set(event.file, event.total ? (event.loaded ?? 0) / event.total : 0)
+      const values = [...files.values()]
+      reportDownload?.(values.reduce((sum, value) => sum + value, 0) / values.length)
+    }
+    const [model, processor] = await Promise.all([
+      lib.AutoModel.from_pretrained(CUTOUT_MODEL, { dtype: 'fp16', device: 'wasm', progress_callback } as never),
+      lib.AutoProcessor.from_pretrained(CUTOUT_MODEL, { progress_callback } as never),
+    ])
+    return { lib, model, processor }
+  })().catch((error) => {
+    segmenter = undefined
+    throw error
   })
-  return { blob: await trimTransparent(result), type: 'image/png' }
+  return segmenter
+}
+
+export async function cutOut(blob: Blob, onProgress?: (fraction: number) => void): Promise<PreparedImage> {
+  reportDownload = onProgress
+  const { lib, model, processor } = await loadSegmenter()
+  const image = await lib.RawImage.fromBlob(blob)
+  const { pixel_values } = await processor(image)
+  const { output } = await model({ input: pixel_values })
+  const mask = await lib.RawImage.fromTensor(output[0].mul(255).to('uint8')).resize(image.width, image.height)
+  const canvas = document.createElement('canvas')
+  canvas.width = image.width
+  canvas.height = image.height
+  const context = canvas.getContext('2d', { willReadFrequently: true })!
+  context.drawImage(image.toCanvas() as HTMLCanvasElement, 0, 0)
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height)
+  for (let i = 0; i < mask.data.length; i++) pixels.data[i * 4 + 3] = mask.data[i]
+  context.putImageData(pixels, 0, 0)
+  return { blob: await trimTransparent(await toBlob(canvas, 'image/png')), type: 'image/png' }
 }
 
 export async function dominantColor(blob: Blob): Promise<ColorName | undefined> {
