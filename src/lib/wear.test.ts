@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { Item } from './types.ts'
-import { costPerWear, dayKey, sortItemsBy, toggleDay, wornLabel } from './wear.ts'
+import { costPerWear, dayKey, dayLabel, sortItemsBy, toggleDay, wornDays, wornLabel } from './wear.ts'
 
 const item = (id: string, wears: string[] | undefined, createdAt = 0, price?: number): Item => ({
   id,
@@ -63,4 +63,20 @@ test('brand and color sorts group items', async () => {
     ['No brand', ['b']],
   ])
   assert.deepEqual(groupItems(items, 'newest').map((g) => g.label), [''])
+})
+
+test('wornDays groups items by day, newest first', () => {
+  const days = wornDays([item('a', ['2026-01-02', '2026-01-01']), item('b', ['2026-01-02']), item('c', undefined)])
+  assert.deepEqual(
+    days.map(({ day, items }) => [day, items.map((worn) => worn.id)]),
+    [
+      ['2026-01-02', ['a', 'b']],
+      ['2026-01-01', ['a']],
+    ],
+  )
+})
+
+test('dayLabel names recent days', () => {
+  assert.equal(dayLabel('2026-03-10', '2026-03-10'), 'Today')
+  assert.equal(dayLabel('2026-03-09', '2026-03-10'), 'Yesterday')
 })

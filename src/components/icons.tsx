@@ -75,3 +75,9 @@ export const ChartIcon = ({ className = 'h-5 w-5' }: { className?: string }) => 
     <path d="M4 20h16M7 16v-5M12 16V6M17 16v-8" />
   </svg>
 )
+export const CalendarIcon = ({ className = 'h-5 w-5' }: { className?: string }) => (
+  <svg {...base} className={className}>
+    <rect x="3.5" y="5" width="17" height="15" rx="2" />
+    <path d="M3.5 10h17M8 3v4M16 3v4" />
+  </svg>
+)
