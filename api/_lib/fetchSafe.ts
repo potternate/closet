@@ -1,5 +1,7 @@
+import { lookup as lookupCallback, type LookupAddress } from 'node:dns'
 import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
+import { Agent, fetch } from 'undici'
 
 const BROWSER_HEADERS = {
   'user-agent':
@@ -15,11 +17,17 @@ export class FetchError extends Error {
   }
 }
 
-function isPrivateAddress(address: string) {
+export function isPrivateAddress(address: string): boolean {
   if (isIP(address) === 6) {
     const lower = address.toLowerCase()
-    if (lower.startsWith('::ffff:')) return isPrivateAddress(lower.slice(7))
-    return lower === '::1' || lower === '::' || /^f[cd]/.test(lower) || /^fe[89ab]/.test(lower)
+    const mapped = lower.match(/^::ffff:(?:(\d+\.\d+\.\d+\.\d+)|([\da-f]{1,4}):([\da-f]{1,4}))$/)
+    if (mapped) {
+      if (mapped[1]) return isPrivateAddress(mapped[1])
+      const high = parseInt(mapped[2], 16)
+      const low = parseInt(mapped[3], 16)
+      return isPrivateAddress(`${high >> 8}.${high & 255}.${low >> 8}.${low & 255}`)
+    }
+    return lower.startsWith('::') || /^f[cdf]/.test(lower) || /^fe[89ab]/.test(lower) || lower.startsWith('64:ff9b:')
   }
   const [a, b] = address.split('.').map(Number)
   return (
@@ -55,6 +63,22 @@ async function assertPublicHost(url: URL) {
   if (addresses.some(({ address }) => isPrivateAddress(address))) throw new FetchError('That link isn’t reachable')
 }
 
+// Re-checks every address at connect time so DNS rebinding can't reach a private host.
+const publicOnly = new Agent({
+  connect: {
+    lookup(hostname, options, callback) {
+      lookupCallback(hostname, { ...options, all: true }, (error, addresses: LookupAddress[]) => {
+        if (error) return callback(error, '', 4)
+        if (!addresses.length || addresses.some(({ address }) => isPrivateAddress(address))) {
+          return callback(new FetchError('That link isn’t reachable'), '', 4)
+        }
+        if (options.all) return (callback as unknown as (error: null, addresses: LookupAddress[]) => void)(null, addresses)
+        callback(null, addresses[0].address, addresses[0].family)
+      })
+    },
+  },
+})
+
 export async function fetchPublic(url: URL, accept: string, maxBytes: number, timeoutMs = 10000) {
   let current = url
   const signal = AbortSignal.timeout(timeoutMs)
@@ -64,6 +88,7 @@ export async function fetchPublic(url: URL, accept: string, maxBytes: number, ti
       headers: { ...BROWSER_HEADERS, accept },
       redirect: 'manual',
       signal,
+      dispatcher: publicOnly,
     }).catch((error: unknown) => {
       throw new FetchError(
         error instanceof Error && error.name === 'TimeoutError' ? 'That website took too long to respond' : 'Couldn’t reach that website',
