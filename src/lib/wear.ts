@@ -26,7 +26,7 @@ export function wornLabel(wears: string[] | undefined, today = dayKey()) {
   return `Worn ${days} days ago`
 }
 
-export const costPerWear = (item: Pick<Item, 'price' | 'wears'>) => (item.price && wearCount(item) ? item.price / wearCount(item) : undefined)
+export const costPerWear = (item: Pick<Item, 'price' | 'wears'>) => (item.price !== undefined && wearCount(item) ? item.price / wearCount(item) : undefined)
 
 export const SORTS = [
   ['newest', 'Newest'],

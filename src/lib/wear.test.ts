@@ -36,6 +36,7 @@ test('costPerWear divides price by wears', () => {
   assert.equal(costPerWear(item('a', ['2026-01-01', '2026-01-02'], 0, 100)), 50)
   assert.equal(costPerWear(item('a', [], 0, 100)), undefined)
   assert.equal(costPerWear(item('a', ['2026-01-01'])), undefined)
+  assert.equal(costPerWear(item('a', ['2026-01-01'], 0, 0)), 0)
 })
 
 test('sorts by wear, falling back to newest', () => {
