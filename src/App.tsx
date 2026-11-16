@@ -240,7 +240,7 @@ export default function App() {
                   selected={selected?.includes(item.id)}
                   onOpen={() =>
                     selected
-                      ? setSelected(selected.includes(item.id) ? selected.filter((id) => id !== item.id) : [...selected, item.id])
+                      ? (setSelected(selected.includes(item.id) ? selected.filter((id) => id !== item.id) : [...selected, item.id]), setConfirmBulkDelete(false))
                       : setOpenId(item.id)
                   }
                 />
@@ -341,7 +341,7 @@ export default function App() {
       {outfitEditor && (
         <Sheet onClose={() => setOutfitEditor(undefined)}>
           <OutfitEditor
-            items={owned}
+            items={closet.items}
             existing={outfitEditor.existing}
             initialIds={outfitEditor.initialIds}
             onCancel={() => setOutfitEditor(undefined)}

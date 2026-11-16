@@ -22,8 +22,9 @@ export function OutfitEditor({ items, existing, initialIds, onSave, onCancel }: 
 
   const byId = useMemo(() => new Map(items.map((item) => [item.id, item])), [items])
   const pieces = sortForOutfit(selected.map((id) => byId.get(id)).filter((item): item is Item => Boolean(item)))
-  const categories = CATEGORIES.filter((candidate) => items.some((item) => item.category === candidate))
-  const shown = category === 'All' ? items : items.filter((item) => item.category === category)
+  const owned = items.filter((item) => !item.wishlist)
+  const categories = CATEGORIES.filter((candidate) => owned.some((item) => item.category === candidate))
+  const shown = category === 'All' ? owned : owned.filter((item) => item.category === category)
 
   const toggle = (id: string) => setSelected((current) => (current.includes(id) ? current.filter((other) => other !== id) : [...current, id]))
 
@@ -33,7 +34,7 @@ export function OutfitEditor({ items, existing, initialIds, onSave, onCancel }: 
         <h2 className="text-xl font-bold text-stone-900">{existing ? 'Edit outfit' : 'New outfit'}</h2>
         <button
           type="button"
-          onClick={() => setSelected(shuffleOutfit(items).map((item) => item.id))}
+          onClick={() => setSelected(shuffleOutfit(owned).map((item) => item.id))}
           className="flex items-center gap-1.5 rounded-full bg-stone-100 px-3.5 py-1.5 text-sm font-semibold text-stone-700 active:bg-stone-200"
         >
           <ShuffleIcon className="h-4 w-4" /> Shuffle
