@@ -6,7 +6,7 @@ export function Chip({ active, onClick, children }: { active: boolean; onClick: 
       type="button"
       onClick={onClick}
       className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${
-        active ? 'bg-stone-900 text-white' : 'bg-white text-stone-600 ring-1 ring-stone-200 active:bg-stone-100'
+        active ? 'bg-stone-900 text-stone-50' : 'bg-surface text-stone-600 ring-1 ring-stone-200 active:bg-stone-100'
       }`}
     >
       {children}

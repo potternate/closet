@@ -136,7 +136,7 @@ export function ItemEditor({ source, onSave, onCancel, saveLabel = 'Add to close
           Cancel
         </button>
         <h2 className="text-base font-bold text-stone-900">{source.existing ? 'Edit item' : 'New item'}</h2>
-        <button type="submit" disabled={!canSave} className="rounded-full bg-stone-900 px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-40">
+        <button type="submit" disabled={!canSave} className="rounded-full bg-stone-900 px-4 py-1.5 text-sm font-semibold text-stone-50 disabled:opacity-40">
           {saving ? 'Saving…' : 'Save'}
         </button>
       </div>
@@ -159,7 +159,7 @@ export function ItemEditor({ source, onSave, onCancel, saveLabel = 'Add to close
           </button>
         )}
         {working && (
-          <div className="absolute inset-x-6 bottom-6 rounded-2xl bg-white/90 p-3 text-center shadow-lg backdrop-blur">
+          <div className="absolute inset-x-6 bottom-6 rounded-2xl bg-surface/90 p-3 text-center shadow-lg backdrop-blur">
             <div className="text-sm font-semibold text-stone-800">Removing background…</div>
             <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-200">
               <div
@@ -309,7 +309,7 @@ export function ItemEditor({ source, onSave, onCancel, saveLabel = 'Add to close
         <textarea rows={2} className={inputClass} value={draft.notes ?? ''} onChange={(event) => update({ notes: event.target.value || undefined })} />
       </label>
 
-      <button type="submit" disabled={!canSave} className="mt-6 w-full rounded-xl bg-stone-900 py-3.5 font-semibold text-white disabled:opacity-40">
+      <button type="submit" disabled={!canSave} className="mt-6 w-full rounded-xl bg-stone-900 py-3.5 font-semibold text-stone-50 disabled:opacity-40">
         {saving ? 'Saving…' : working ? 'Removing background…' : source.existing ? 'Save changes' : saveLabel}
       </button>
     </form>

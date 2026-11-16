@@ -99,7 +99,7 @@ export function AddSheet({ onSave, onClose, initialLink, title = 'Add to closet'
               value={link}
               onChange={(event) => setLink(event.target.value)}
               placeholder="Paste a link from any store"
-              className="mt-3 w-full rounded-xl bg-white px-3.5 py-3 text-base text-stone-900 ring-1 ring-stone-200 outline-none placeholder:text-stone-400 focus:ring-2 focus:ring-stone-900"
+              className="mt-3 w-full rounded-xl bg-surface px-3.5 py-3 text-base text-stone-900 ring-1 ring-stone-200 outline-none placeholder:text-stone-400 focus:ring-2 focus:ring-stone-900"
             />
             <div className="mt-3 flex gap-2">
               {'clipboard' in navigator && 'readText' in navigator.clipboard && (
@@ -107,7 +107,7 @@ export function AddSheet({ onSave, onClose, initialLink, title = 'Add to closet'
                   type="button"
                   disabled={importing}
                   onClick={() => void pasteAndImport()}
-                  className="flex-1 rounded-xl bg-white py-3 text-sm font-semibold text-stone-700 ring-1 ring-stone-200 active:bg-stone-100 disabled:opacity-50"
+                  className="flex-1 rounded-xl bg-surface py-3 text-sm font-semibold text-stone-700 ring-1 ring-stone-200 active:bg-stone-100 disabled:opacity-50"
                 >
                   Paste
                 </button>
@@ -115,7 +115,7 @@ export function AddSheet({ onSave, onClose, initialLink, title = 'Add to closet'
               <button
                 type="submit"
                 disabled={importing || !link.trim()}
-                className="flex-[2] rounded-xl bg-stone-900 py-3 text-sm font-semibold text-white disabled:opacity-40"
+                className="flex-[2] rounded-xl bg-stone-900 py-3 text-sm font-semibold text-stone-50 disabled:opacity-40"
               >
                 {importing ? 'Reading product…' : 'Import'}
               </button>

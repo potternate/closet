@@ -1,6 +1,7 @@
 import type { User } from '@supabase/supabase-js'
 import { useState } from 'react'
 import type { SyncStatus } from '../lib/store'
+import { getThemePref, setThemePref, type ThemePref } from '../lib/theme'
 import { Sheet } from './Sheet'
 
 interface Props {
@@ -29,6 +30,7 @@ export function AccountSheet({ user, loading, configured, error, syncStatus, onS
   const [code, setCode] = useState('')
   const [codeSent, setCodeSent] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [theme, setTheme] = useState<ThemePref>(getThemePref)
 
   const sendCode = async () => {
     if (!email.trim()) return
@@ -66,7 +68,7 @@ export function AccountSheet({ user, loading, configured, error, syncStatus, onS
             {avatar ? (
               <img src={avatar} alt="" className="h-11 w-11 rounded-full" referrerPolicy="no-referrer" />
             ) : (
-              <div className="grid h-11 w-11 place-items-center rounded-full bg-stone-900 font-bold text-white">
+              <div className="grid h-11 w-11 place-items-center rounded-full bg-stone-900 font-bold text-stone-50">
                 {(name ?? 'Y').slice(0, 1).toUpperCase()}
               </div>
             )}
@@ -107,7 +109,7 @@ export function AccountSheet({ user, loading, configured, error, syncStatus, onS
               <button
                 type="submit"
                 disabled={loading || submitting || !configured || !email.trim()}
-                className="mt-3 w-full rounded-xl bg-stone-900 py-3.5 font-semibold text-white disabled:opacity-50"
+                className="mt-3 w-full rounded-xl bg-stone-900 py-3.5 font-semibold text-stone-50 disabled:opacity-50"
               >
                 {loading ? 'Checking account…' : submitting ? 'Sending…' : 'Email me a sign-in code'}
               </button>
@@ -138,7 +140,7 @@ export function AccountSheet({ user, loading, configured, error, syncStatus, onS
               <button
                 type="submit"
                 disabled={submitting || code.length !== 6}
-                className="mt-3 w-full rounded-xl bg-stone-900 py-3.5 font-semibold text-white disabled:opacity-50"
+                className="mt-3 w-full rounded-xl bg-stone-900 py-3.5 font-semibold text-stone-50 disabled:opacity-50"
               >
                 {submitting ? 'Signing in…' : 'Sign in'}
               </button>
@@ -160,6 +162,24 @@ export function AccountSheet({ user, loading, configured, error, syncStatus, onS
           </p>
         </>
       )}
+      <div className="mt-6">
+        <div className="text-xs font-semibold tracking-wide text-stone-400 uppercase">Appearance</div>
+        <div className="mt-2 grid grid-cols-3 gap-1 rounded-xl bg-stone-100 p-1">
+          {(['system', 'light', 'dark'] as const).map((option) => (
+            <button
+              key={option}
+              onClick={() => {
+                setTheme(option)
+                setThemePref(option)
+              }}
+              aria-pressed={theme === option}
+              className={`rounded-lg py-2 text-sm font-semibold capitalize ${theme === option ? 'bg-surface text-stone-900 shadow-sm' : 'text-stone-500'}`}
+            >
+              {option === 'system' ? 'Auto' : option}
+            </button>
+          ))}
+        </div>
+      </div>
       {error && <p className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600">{error}</p>}
     </Sheet>
   )

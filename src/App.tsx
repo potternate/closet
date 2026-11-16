@@ -82,7 +82,7 @@ export default function App() {
         <button
           onClick={() => setShowAccount(true)}
           aria-label="Account"
-          className="grid h-10 w-10 place-items-center rounded-full bg-white text-stone-700 shadow-sm ring-1 ring-stone-200"
+          className="grid h-10 w-10 place-items-center rounded-full bg-surface text-stone-700 shadow-sm ring-1 ring-stone-200"
         >
           {auth.user ? (
             <span className="font-bold">{(auth.user.email ?? 'Y').slice(0, 1).toUpperCase()}</span>
@@ -95,7 +95,7 @@ export default function App() {
       {tab === 'closet' && owned.length > 0 && (
         <>
           <div className="mt-4 flex gap-2">
-            <label className="flex flex-1 items-center gap-2 rounded-xl bg-white px-3 ring-1 ring-stone-200 focus-within:ring-2 focus-within:ring-stone-900">
+            <label className="flex flex-1 items-center gap-2 rounded-xl bg-surface px-3 ring-1 ring-stone-200 focus-within:ring-2 focus-within:ring-stone-900">
               <SearchIcon className="h-4 w-4 text-stone-400" />
               <input
                 value={query}
@@ -107,14 +107,14 @@ export default function App() {
             <button
               onClick={() => setShowFilters((value) => !value)}
               aria-label="Filters"
-              className={`grid w-11 place-items-center rounded-xl ring-1 ${filtersActive || showFilters ? 'bg-stone-900 text-white ring-stone-900' : 'bg-white text-stone-600 ring-stone-200'}`}
+              className={`grid w-11 place-items-center rounded-xl ring-1 ${filtersActive || showFilters ? 'bg-stone-900 text-stone-50 ring-stone-900' : 'bg-surface text-stone-600 ring-stone-200'}`}
             >
               <SlidersIcon className="h-5 w-5" />
             </button>
           </div>
 
           {showFilters && (
-            <div className="mt-3 rounded-2xl bg-white p-3.5 ring-1 ring-stone-200">
+            <div className="mt-3 rounded-2xl bg-surface p-3.5 ring-1 ring-stone-200">
               <div className="text-xs font-semibold tracking-wide text-stone-400 uppercase">Color</div>
               <div className="mt-2 flex flex-wrap gap-2">
                 {usedColors.length ? (
@@ -185,7 +185,7 @@ export default function App() {
           </div>
         ) : (
           <div className="mt-16 flex flex-col items-center text-center">
-            <div className="grid h-20 w-20 place-items-center rounded-full bg-white text-stone-400 shadow-sm ring-1 ring-stone-200">
+            <div className="grid h-20 w-20 place-items-center rounded-full bg-surface text-stone-400 shadow-sm ring-1 ring-stone-200">
               <HeartIcon className="h-9 w-9" />
             </div>
             <h2 className="mt-5 text-lg font-semibold text-stone-900">Nothing on your wishlist</h2>
@@ -215,13 +215,13 @@ export default function App() {
       {(tab !== 'outfits' || owned.length > 0) && (
         <button
           onClick={() => (tab === 'outfits' ? setOutfitEditor({}) : setAdding(true))}
-          className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full bg-stone-900 py-3.5 pr-6 pl-5 font-semibold text-white shadow-xl shadow-stone-900/25 active:scale-95"
+          className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full bg-stone-900 py-3.5 pr-6 pl-5 font-semibold text-stone-50 shadow-xl shadow-stone-900/25 active:scale-95"
         >
           <PlusIcon className="h-5 w-5" /> {tab === 'closet' ? 'Add item' : tab === 'outfits' ? 'New outfit' : 'Add to wishlist'}
         </button>
       )}
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-stone-200/80 bg-white/90 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-stone-200/80 bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur">
         <div className="mx-auto flex max-w-3xl">
           {(
             [
@@ -314,7 +314,7 @@ function wearDetail(item: Item) {
 
 function ItemCard({ item, detail, onOpen }: { item: Item; detail?: string; onOpen: () => void }) {
   return (
-    <button onClick={onOpen} className="group overflow-hidden rounded-2xl bg-white text-left shadow-sm ring-1 ring-stone-200/70 active:scale-[0.98]">
+    <button onClick={onOpen} className="group overflow-hidden rounded-2xl bg-surface text-left shadow-sm ring-1 ring-stone-200/70 active:scale-[0.98]">
       <div className="aspect-[4/5] bg-stone-100/70">
         <ItemImage item={item} className="h-full w-full p-3" />
       </div>
@@ -329,12 +329,12 @@ function ItemCard({ item, detail, onOpen }: { item: Item; detail?: string; onOpe
 function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
     <div className="mt-20 flex flex-col items-center text-center">
-      <div className="grid h-20 w-20 place-items-center rounded-3xl bg-white text-stone-800 shadow-sm ring-1 ring-stone-200">
+      <div className="grid h-20 w-20 place-items-center rounded-3xl bg-surface text-stone-800 shadow-sm ring-1 ring-stone-200">
         <HangerIcon className="h-10 w-10" />
       </div>
       <h2 className="mt-5 text-xl font-bold text-stone-900">Your closet is empty</h2>
       <p className="mt-1.5 max-w-xs text-stone-500">Paste a link from any store or snap a photo of something you own.</p>
-      <button onClick={onAdd} className="mt-6 rounded-full bg-stone-900 px-6 py-3 font-semibold text-white">
+      <button onClick={onAdd} className="mt-6 rounded-full bg-stone-900 px-6 py-3 font-semibold text-stone-50">
         Add your first item
       </button>
     </div>
