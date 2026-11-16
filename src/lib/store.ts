@@ -3,6 +3,7 @@ import { supabase } from './supabase'
 import { deleteLocalImage, loadLocalImage, saveLocalImage, type PreparedImage } from './images'
 import type { Outfit, OutfitDraft } from './outfits'
 import type { Draft, Item } from './types'
+import { toggleDay } from './wear'
 
 export type SyncStatus = 'local' | 'syncing' | 'synced' | 'error'
 
@@ -288,6 +289,7 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
       if (replaced) void deleteLocalImage(replaced.id)
       const item: Item = {
         ...draft,
+        wears: stateRef.current.items.find((candidate) => candidate.id === existing?.id)?.wears ?? draft.wears,
         name: draft.name.trim() || draft.category,
         id: existing?.id ?? crypto.randomUUID(),
         image: nextImage,
@@ -365,7 +367,33 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
     [commit, sync],
   )
 
-  return { items: state.items, outfits: state.outfits.records, syncStatus, saveItem, deleteItem, saveOutfit, deleteOutfit }
+  const setWorn = useCallback(
+    (itemIds: string[], day: string, worn: boolean, outfitId?: string) => {
+      const now = Date.now()
+      const ids = new Set(itemIds)
+      const current = stateRef.current
+      let dirty = current.dirty
+      const items = current.items.map((item) => {
+        if (!ids.has(item.id)) return item
+        dirty = markDirty(dirty, item.id)
+        return { ...item, wears: toggleDay(item.wears, day, worn), updatedAt: now }
+      })
+      const outfits = outfitId
+        ? {
+            ...current.outfits,
+            records: current.outfits.records.map((outfit) =>
+              outfit.id === outfitId ? { ...outfit, wears: toggleDay(outfit.wears, day, worn), updatedAt: now } : outfit,
+            ),
+            dirty: markDirty(current.outfits.dirty, outfitId),
+          }
+        : current.outfits
+      commit({ ...current, items, dirty, outfits })
+      void sync()
+    },
+    [commit, sync],
+  )
+
+  return { setWorn, items: state.items, outfits: state.outfits.records, syncStatus, saveItem, deleteItem, saveOutfit, deleteOutfit }
 }
 
 function trashPath(trash: string[], image: Item['image']) {

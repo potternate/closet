@@ -5,6 +5,7 @@ export interface Outfit {
   name: string
   itemIds: string[]
   notes?: string
+  wears?: string[]
   createdAt: number
   updatedAt: number
 }

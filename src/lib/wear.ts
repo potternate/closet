@@ -1,0 +1,49 @@
+import type { Item } from './types'
+
+export const dayKey = (date = new Date()) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+
+export const toggleDay = (days: string[] | undefined, day: string, worn: boolean) =>
+  worn ? [...new Set([...(days ?? []), day])].sort() : (days ?? []).filter((other) => other !== day)
+
+export const wearCount = (item: Pick<Item, 'wears'>) => item.wears?.length ?? 0
+
+export const lastWorn = (wears: string[] | undefined) => wears?.reduce<string | undefined>((latest, day) => (!latest || day > latest ? day : latest), undefined)
+
+const toUtc = (day: string) => {
+  const [year, month, date] = day.split('-').map(Number)
+  return Date.UTC(year, month - 1, date)
+}
+
+export const daysBetween = (from: string, to: string) => Math.round((toUtc(to) - toUtc(from)) / 86_400_000)
+
+export function wornLabel(wears: string[] | undefined, today = dayKey()) {
+  const last = lastWorn(wears)
+  if (!last) return 'Never worn'
+  const days = daysBetween(last, today)
+  if (days <= 0) return 'Worn today'
+  if (days === 1) return 'Worn yesterday'
+  return `Worn ${days} days ago`
+}
+
+export const costPerWear = (item: Pick<Item, 'price' | 'wears'>) => (item.price && wearCount(item) ? item.price / wearCount(item) : undefined)
+
+export const SORTS = [
+  ['newest', 'Newest'],
+  ['least-worn', 'Least worn'],
+  ['most-worn', 'Most worn'],
+  ['recently-worn', 'Recently worn'],
+] as const
+
+export type SortKey = (typeof SORTS)[number][0]
+
+export function sortItemsBy(items: Item[], key: SortKey) {
+  const last = (item: Item) => lastWorn(item.wears) ?? ''
+  const compare: Record<SortKey, (a: Item, b: Item) => number> = {
+    newest: () => 0,
+    'least-worn': (a, b) => wearCount(a) - wearCount(b) || last(a).localeCompare(last(b)),
+    'most-worn': (a, b) => wearCount(b) - wearCount(a) || last(b).localeCompare(last(a)),
+    'recently-worn': (a, b) => last(b).localeCompare(last(a)),
+  }
+  return [...items].sort((a, b) => compare[key](a, b) || b.createdAt - a.createdAt)
+}
