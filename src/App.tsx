@@ -32,6 +32,8 @@ export default function App() {
   const [tab, setTab] = useState<'closet' | 'outfits' | 'wishlist' | 'stats'>(shared?.wishlist ? 'wishlist' : 'closet')
   const [openOutfitId, setOpenOutfitId] = useState<string>()
   const [outfitEditor, setOutfitEditor] = useState<{ existing?: Outfit; initialIds?: string[] }>()
+  const [selected, setSelected] = useState<string[]>()
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
 
   useEffect(() => {
     if (shared) history.replaceState(null, '', location.pathname)
@@ -110,6 +112,15 @@ export default function App() {
                 className="w-full bg-transparent py-2.5 text-base outline-none placeholder:text-stone-400"
               />
             </label>
+            <button
+              onClick={() => {
+                setSelected(selected ? undefined : [])
+                setConfirmBulkDelete(false)
+              }}
+              className={`rounded-xl px-3 text-sm font-semibold ring-1 ${selected ? 'bg-stone-900 text-stone-50 ring-stone-900' : 'bg-surface text-stone-600 ring-stone-200'}`}
+            >
+              Select
+            </button>
             <button
               onClick={() => setShowFilters((value) => !value)}
               aria-label="Filters"
@@ -222,14 +233,53 @@ export default function App() {
             )}
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
               {group.items.map((item) => (
-                <ItemCard key={item.id} item={item} detail={sort.endsWith('worn') ? wearDetail(item) : undefined} onOpen={() => setOpenId(item.id)} />
+                <ItemCard
+                  key={item.id}
+                  item={item}
+                  detail={sort.endsWith('worn') ? wearDetail(item) : undefined}
+                  selected={selected?.includes(item.id)}
+                  onOpen={() =>
+                    selected
+                      ? setSelected(selected.includes(item.id) ? selected.filter((id) => id !== item.id) : [...selected, item.id])
+                      : setOpenId(item.id)
+                  }
+                />
               ))}
             </div>
           </section>
         ))
       )}
 
-      {tab !== 'stats' && (tab !== 'outfits' || owned.length > 0) && (
+      {tab === 'closet' && selected && selected.length > 0 && (
+        <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full bg-surface py-2 pr-2 pl-4 shadow-xl ring-1 ring-stone-200">
+          <span className="text-sm font-semibold text-stone-800">{selected.length}</span>
+          <button
+            onClick={() => {
+              selected.forEach((id) => closet.patchItem(id, { wishlist: true }))
+              setSelected(undefined)
+            }}
+            className="rounded-full bg-stone-100 px-3.5 py-2 text-sm font-semibold text-stone-800"
+          >
+            To wishlist
+          </button>
+          <button
+            onClick={() => {
+              if (!confirmBulkDelete) return setConfirmBulkDelete(true)
+              selected.forEach((id) => {
+                const item = closet.items.find((candidate) => candidate.id === id)
+                if (item) closet.deleteItem(item)
+              })
+              setSelected(undefined)
+              setConfirmBulkDelete(false)
+            }}
+            className="rounded-full bg-rose-600 px-3.5 py-2 text-sm font-semibold text-white"
+          >
+            {confirmBulkDelete ? 'Sure?' : 'Delete'}
+          </button>
+        </div>
+      )}
+
+      {!(tab === 'closet' && selected?.length) && tab !== 'stats' && (tab !== 'outfits' || owned.length > 0) && (
         <button
           onClick={() => (tab === 'outfits' ? setOutfitEditor({}) : setAdding(true))}
           className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full bg-stone-900 py-3.5 pr-6 pl-5 font-semibold text-stone-50 shadow-xl shadow-stone-900/25 active:scale-95"
@@ -340,11 +390,18 @@ function wearDetail(item: Item) {
   return count ? `${count}× · ${wornLabel(item.wears).replace(/^Worn /, '')}` : 'Never worn'
 }
 
-function ItemCard({ item, detail, onOpen }: { item: Item; detail?: string; onOpen: () => void }) {
+function ItemCard({ item, detail, selected, onOpen }: { item: Item; detail?: string; selected?: boolean; onOpen: () => void }) {
   return (
-    <button onClick={onOpen} className="group overflow-hidden rounded-2xl bg-surface text-left shadow-sm ring-1 ring-stone-200/70 active:scale-[0.98]">
-      <div className="aspect-[4/5] bg-stone-100/70">
+    <button
+      onClick={onOpen}
+      aria-pressed={selected}
+      className={`group overflow-hidden rounded-2xl bg-surface text-left shadow-sm ring-1 active:scale-[0.98] ${selected ? 'ring-2 ring-stone-900' : 'ring-stone-200/70'}`}
+    >
+      <div className="relative aspect-[4/5] bg-stone-100/70">
         <ItemImage item={item} className="h-full w-full p-3" />
+        {selected !== undefined && (
+          <span className={`absolute top-2 right-2 grid h-6 w-6 place-items-center rounded-full text-xs font-bold ${selected ? 'bg-stone-900 text-stone-50' : 'bg-surface text-transparent ring-1 ring-stone-300'}`}>✓</span>
+        )}
       </div>
       <div className="px-3 py-2.5">
         <div className="truncate text-sm font-semibold text-stone-900">{item.name}</div>
