@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { PreparedImage } from '../lib/images'
 import { imageBlob } from '../lib/store'
-import { formatPrice, type Draft, type Item } from '../lib/types'
+import { formatPrice, itemColors, type Draft, type Item } from '../lib/types'
 import { costPerWear, dayKey, wearCount, wornLabel } from '../lib/wear'
 import { Swatch } from './Chips'
 import { ItemEditor } from './ItemEditor'
@@ -65,9 +65,14 @@ export function ItemSheet({ item, onSave, onDelete, onToggleWorn, onLogDay, onBo
           <div className="text-xs font-semibold tracking-wide text-stone-400 uppercase">{item.category}</div>
           <h2 className="mt-0.5 text-xl leading-snug font-bold text-stone-900">{item.name}</h2>
         </div>
-        {item.color && (
+        {itemColors(item).length > 0 && (
           <div className="flex shrink-0 items-center gap-1.5 rounded-full bg-stone-50 py-1 pr-3 pl-1 text-sm font-medium text-stone-600 ring-1 ring-stone-100">
-            <Swatch name={item.color} size="h-5 w-5" /> {item.color}
+            <span className="flex -space-x-1.5">
+              {itemColors(item).map((name) => (
+                <Swatch key={name} name={name} size="h-5 w-5" />
+              ))}
+            </span>
+            {itemColors(item).join(' / ')}
           </div>
         )}
       </div>

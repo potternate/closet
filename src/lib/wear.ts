@@ -1,4 +1,4 @@
-import { COLORS, type Item } from './types.ts'
+import { COLORS, itemColors, type Item } from './types.ts'
 
 export const dayKey = (date = new Date()) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
@@ -55,13 +55,13 @@ export function sortItemsBy(items: Item[], key: SortKey) {
 const NO_BRAND = 'No brand'
 const sortable = (label: string) => (label === NO_BRAND ? '\uffff' : label.toLowerCase())
 const colorRank = (item: Item) => {
-  const index = COLORS.findIndex((color) => color.name === item.color)
+  const index = COLORS.findIndex((color) => color.name === itemColors(item)[0])
   return index === -1 ? COLORS.length : index
 }
 
 export function groupLabel(item: Item, key: SortKey) {
   if (key === 'brand') return item.brand?.trim() || NO_BRAND
-  if (key === 'color') return item.color ?? 'No color'
+  if (key === 'color') return itemColors(item)[0] ?? 'No color'
   return undefined
 }
 

@@ -1,5 +1,5 @@
 import type { Outfit } from './outfits.ts'
-import { CATEGORIES, COLORS, SEASONS, type Item } from './types.ts'
+import { CATEGORIES, COLORS, SEASONS, itemColors, type Item } from './types.ts'
 import { costPerWear, wearCount } from './wear.ts'
 
 export interface Tally<K extends string = string> {
@@ -29,7 +29,7 @@ export function closetStats(items: Item[], outfits: Outfit[]) {
     wears: items.reduce((sum, item) => sum + wearCount(item), 0),
     value: { amount: sameCurrency.reduce((sum, item) => sum + (item.price ?? 0), 0), currency, priced: sameCurrency.length },
     categories: tally(items.map((item) => item.category)).sort((a, b) => CATEGORIES.indexOf(a.key) - CATEGORIES.indexOf(b.key)),
-    colors: tally(items.map((item) => item.color)),
+    colors: tally(items.flatMap((item) => itemColors(item))),
     brands: tally(items.map((item) => item.brand?.trim() || undefined)).slice(0, 6),
     seasons: SEASONS.map((season) => ({ key: season, count: items.filter((item) => item.seasons.includes(season)).length })),
     noSeason: items.filter((item) => item.seasons.length === 0).length,

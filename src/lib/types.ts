@@ -29,6 +29,7 @@ export interface Item {
   name: string
   category: Category
   color?: ColorName
+  colors?: ColorName[]
   brand?: string
   size?: string
   price?: number
@@ -42,6 +43,11 @@ export interface Item {
   createdAt: number
   updatedAt: number
 }
+
+// `colors` is the full list (first = primary); `color` mirrors the primary for older clients.
+export const itemColors = (item: Pick<Item, 'color' | 'colors'>): ColorName[] => item.colors ?? (item.color ? [item.color] : [])
+
+export const withColors = (colors: ColorName[]) => ({ colors, color: colors[0] })
 
 export type Draft = Omit<Item, 'id' | 'createdAt' | 'updatedAt' | 'image'>
 

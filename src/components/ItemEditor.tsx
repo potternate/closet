@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { cutOut, dominantColor, prepareImage, type PreparedImage } from '../lib/images'
 import { fetchProductImage, proxiedImage } from '../lib/productImport'
-import { CATEGORIES, SEASONS, type Draft, type Item } from '../lib/types'
+import { CATEGORIES, itemColors, SEASONS, withColors, type Draft, type Item } from '../lib/types'
 import { ColorPicker, Chip } from './Chips'
 import { ItemImage } from './ItemImage'
 import { PhotosIcon, SparkleIcon } from './icons'
@@ -37,7 +37,7 @@ export function ItemEditor({ source, onSave, onCancel, saveLabel = 'Add to close
   const [pickedUrl, setPickedUrl] = useState(source.imageUrls?.[0])
   const [saving, setSaving] = useState(false)
   const [priceText, setPriceText] = useState(source.draft.price?.toString() ?? '')
-  const colorTouched = useRef(Boolean(source.draft.color))
+  const colorTouched = useRef(itemColors(source.draft).length > 0)
   const replaceInput = useRef<HTMLInputElement>(null)
   const runId = useRef(0)
 
@@ -63,7 +63,7 @@ export function ItemEditor({ source, onSave, onCancel, saveLabel = 'Add to close
       setCut({ status: 'idle' })
       if (!colorTouched.current) {
         const color = await dominantColor(result.blob)
-        if (!colorTouched.current && color) update({ color })
+        if (!colorTouched.current && color) update(withColors([color]))
       }
     } catch (error) {
       if (id !== runId.current) return
@@ -82,7 +82,7 @@ export function ItemEditor({ source, onSave, onCancel, saveLabel = 'Add to close
       setImage(prepared)
       if (!colorTouched.current) {
         const color = await dominantColor(prepared.blob)
-        if (!colorTouched.current && color) update({ color })
+        if (!colorTouched.current && color) update(withColors([color]))
       }
       if (autoCut) void runCutOut(prepared)
     } catch (error) {
@@ -242,13 +242,15 @@ export function ItemEditor({ source, onSave, onCancel, saveLabel = 'Add to close
         ))}
       </div>
 
-      <div className="mt-5 text-sm font-semibold text-stone-700">Color</div>
+      <div className="mt-5 text-sm font-semibold text-stone-700">
+        Colors <span className="font-normal text-stone-400">· tap all that apply</span>
+      </div>
       <div className="mt-2">
         <ColorPicker
-          value={draft.color}
-          onChange={(color) => {
+          value={itemColors(draft)}
+          onChange={(colors) => {
             colorTouched.current = true
-            update({ color })
+            update(withColors(colors))
           }}
         />
       </div>
