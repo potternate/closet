@@ -7,7 +7,12 @@ import { AddSheet } from './components/AddSheet'
 import { Chip, Swatch } from './components/Chips'
 import { ItemImage } from './components/ItemImage'
 import { ItemSheet } from './components/ItemSheet'
-import { HangerIcon, PlusIcon, SearchIcon, SlidersIcon, UserIcon } from './components/icons'
+import { HangerIcon, LayersIcon, PlusIcon, SearchIcon, SlidersIcon, UserIcon } from './components/icons'
+import { OutfitEditor } from './components/OutfitEditor'
+import { OutfitSheet } from './components/OutfitSheet'
+import { OutfitsView } from './components/OutfitsView'
+import { Sheet } from './components/Sheet'
+import { shuffleOutfit, type Outfit } from './lib/outfits'
 
 export default function App() {
   const auth = useAuth()
@@ -20,6 +25,9 @@ export default function App() {
   const [adding, setAdding] = useState(false)
   const [openId, setOpenId] = useState<string>()
   const [showAccount, setShowAccount] = useState(false)
+  const [tab, setTab] = useState<'closet' | 'outfits'>('closet')
+  const [openOutfitId, setOpenOutfitId] = useState<string>()
+  const [outfitEditor, setOutfitEditor] = useState<{ existing?: Outfit; initialIds?: string[] }>()
 
   const counts = useMemo(() => {
     const result = new Map<string, number>()
@@ -42,13 +50,18 @@ export default function App() {
   const usedColors = COLORS.filter((candidate) => closet.items.some((item) => item.color === candidate.name))
   const filtersActive = Boolean(color || season)
 
+  const byId = new Map(closet.items.map((item) => [item.id, item]))
+  const openOutfit = closet.outfits.find((outfit) => outfit.id === openOutfitId)
+
   return (
-    <div className="mx-auto min-h-dvh max-w-3xl px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-[calc(env(safe-area-inset-bottom)+6rem)]">
+    <div className="mx-auto min-h-dvh max-w-3xl px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-[calc(env(safe-area-inset-bottom)+10rem)]">
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-stone-900">Closet</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-stone-900">{tab === 'closet' ? 'Closet' : 'Outfits'}</h1>
           <p className="text-sm text-stone-500">
-            {closet.items.length} {closet.items.length === 1 ? 'item' : 'items'}
+            {tab === 'closet'
+              ? `${closet.items.length} ${closet.items.length === 1 ? 'item' : 'items'}`
+              : `${closet.outfits.length} ${closet.outfits.length === 1 ? 'outfit' : 'outfits'}`}
             {closet.syncStatus === 'error' && ' · sync paused'}
           </p>
         </div>
@@ -65,7 +78,7 @@ export default function App() {
         </button>
       </header>
 
-      {closet.items.length > 0 && (
+      {tab === 'closet' && closet.items.length > 0 && (
         <>
           <div className="mt-4 flex gap-2">
             <label className="flex flex-1 items-center gap-2 rounded-xl bg-white px-3 ring-1 ring-stone-200 focus-within:ring-2 focus-within:ring-stone-900">
@@ -140,7 +153,15 @@ export default function App() {
         </>
       )}
 
-      {closet.items.length === 0 ? (
+      {tab === 'outfits' ? (
+        <OutfitsView
+          outfits={closet.outfits}
+          byId={byId}
+          canShuffle={closet.items.length > 0}
+          onOpen={(outfit) => setOpenOutfitId(outfit.id)}
+          onShuffle={() => setOutfitEditor({ initialIds: shuffleOutfit(closet.items).map((item) => item.id) })}
+        />
+      ) : closet.items.length === 0 ? (
         <EmptyState onAdd={() => setAdding(true)} />
       ) : visible.length === 0 ? (
         <p className="mt-16 text-center text-stone-400">Nothing matches.</p>
@@ -152,17 +173,68 @@ export default function App() {
         </div>
       )}
 
-      <button
-        onClick={() => setAdding(true)}
-        aria-label="Add item"
-        className="fixed bottom-[calc(env(safe-area-inset-bottom)+1.25rem)] left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full bg-stone-900 py-3.5 pr-6 pl-5 font-semibold text-white shadow-xl shadow-stone-900/25 active:scale-95"
-      >
-        <PlusIcon className="h-5 w-5" /> Add item
-      </button>
+      {(tab === 'closet' || closet.items.length > 0) && (
+        <button
+          onClick={() => (tab === 'closet' ? setAdding(true) : setOutfitEditor({}))}
+          className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full bg-stone-900 py-3.5 pr-6 pl-5 font-semibold text-white shadow-xl shadow-stone-900/25 active:scale-95"
+        >
+          <PlusIcon className="h-5 w-5" /> {tab === 'closet' ? 'Add item' : 'New outfit'}
+        </button>
+      )}
+
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-stone-200/80 bg-white/90 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+        <div className="mx-auto flex max-w-3xl">
+          {(
+            [
+              ['closet', 'Closet', HangerIcon],
+              ['outfits', 'Outfits', LayersIcon],
+            ] as const
+          ).map(([id, label, Icon]) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              aria-current={tab === id ? 'page' : undefined}
+              className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold ${tab === id ? 'text-stone-900' : 'text-stone-400'}`}
+            >
+              <Icon className="h-6 w-6" />
+              {label}
+            </button>
+          ))}
+        </div>
+      </nav>
 
       {adding && <AddSheet onClose={() => setAdding(false)} onSave={(draft, image) => closet.saveItem(draft, image)} />}
       {openItem && (
         <ItemSheet item={openItem} onClose={() => setOpenId(undefined)} onSave={closet.saveItem} onDelete={closet.deleteItem} />
+      )}
+      {outfitEditor && (
+        <Sheet onClose={() => setOutfitEditor(undefined)}>
+          <OutfitEditor
+            items={closet.items}
+            existing={outfitEditor.existing}
+            initialIds={outfitEditor.initialIds}
+            onCancel={() => setOutfitEditor(undefined)}
+            onSave={(draft, existing) => {
+              const saved = closet.saveOutfit(draft, existing)
+              setOutfitEditor(undefined)
+              setOpenOutfitId(saved.id)
+            }}
+          />
+        </Sheet>
+      )}
+      {openOutfit && !outfitEditor && !openItem && (
+        <Sheet onClose={() => setOpenOutfitId(undefined)}>
+          <OutfitSheet
+            outfit={openOutfit}
+            items={openOutfit.itemIds.map((id) => byId.get(id)).filter((item): item is Item => Boolean(item))}
+            onEdit={() => setOutfitEditor({ existing: openOutfit })}
+            onDelete={() => {
+              closet.deleteOutfit(openOutfit)
+              setOpenOutfitId(undefined)
+            }}
+            onOpenItem={(item) => setOpenId(item.id)}
+          />
+        </Sheet>
       )}
       {showAccount && (
         <AccountSheet
