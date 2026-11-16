@@ -1,4 +1,4 @@
-import { microlink, nameFromShareText, nameFromUrl, siteFromUrl, splitTitle } from './_lib/fallback.js'
+import { isBlockedTitle, microlink, nameFromShareText, nameFromUrl, siteFromUrl, splitTitle } from './_lib/fallback.js'
 import { errorResponse, FetchError, fetchPublic, parseUrl } from './_lib/fetchSafe.js'
 import { parseProduct, type ProductInfo } from './_lib/product.js'
 
@@ -18,6 +18,7 @@ export async function GET(request: Request) {
     const raw = new URL(request.url).searchParams.get('url') ?? ''
     const url = parseUrl(raw)
     let product: ProductInfo = (await direct(url)) ?? { url: url.href, images: [] }
+    if (product.name && isBlockedTitle(product.name)) product = { ...product, name: undefined, description: undefined }
     if (!product.images.length || !product.name) {
       const extra = await microlink(url)
       product = {
