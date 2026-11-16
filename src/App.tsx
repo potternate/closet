@@ -74,6 +74,7 @@ export default function App() {
   const filtersActive = Boolean(color || season) || sort !== 'newest'
 
   const byId = new Map(closet.items.map((item) => [item.id, item]))
+  const openDayItems = days.find(({ day }) => day === openDay)?.items
   const openOutfit = closet.outfits.find((outfit) => outfit.id === openOutfitId)
 
   return (
@@ -377,14 +378,14 @@ export default function App() {
           />
         </Sheet>
       )}
-      {openDay && !outfitEditor && !openItem && (
+      {openDay && openDayItems && !outfitEditor && !openItem && (
         <Sheet onClose={() => setOpenDay(undefined)}>
           <WornDaySheet
             day={openDay}
-            items={days.find(({ day }) => day === openDay)?.items ?? []}
+            items={openDayItems}
             onOpenItem={(item) => setOpenId(item.id)}
             onSaveOutfit={() => {
-              setOutfitEditor({ initialIds: days.find(({ day }) => day === openDay)?.items.map((item) => item.id) })
+              setOutfitEditor({ initialIds: openDayItems.map((item) => item.id) })
               setOpenDay(undefined)
             }}
           />
