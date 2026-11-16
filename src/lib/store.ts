@@ -319,7 +319,7 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
       void syncAgain.current()
       return item
     },
-    [commit, sync],
+    [commit],
   )
 
   const deleteItem = useCallback(
@@ -335,7 +335,7 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
       if (item.image) void deleteLocalImage(item.image.id)
       void syncAgain.current()
     },
-    [commit, sync],
+    [commit],
   )
 
   const saveOutfit = useCallback(
@@ -363,7 +363,7 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
       void syncAgain.current()
       return outfit
     },
-    [commit, sync],
+    [commit],
   )
 
   const deleteOutfit = useCallback(
@@ -379,7 +379,7 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
       })
       void syncAgain.current()
     },
-    [commit, sync],
+    [commit],
   )
 
   const setWorn = useCallback(
@@ -410,7 +410,7 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
       commit({ ...current, items, dirty, outfits })
       void syncAgain.current()
     },
-    [commit, sync],
+    [commit],
   )
 
   const patchItem = useCallback(
@@ -423,7 +423,7 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
       })
       void syncAgain.current()
     },
-    [commit, sync],
+    [commit],
   )
 
   return { setWorn, patchItem, items: state.items, outfits: state.outfits.records, syncStatus, saveItem, deleteItem, saveOutfit, deleteOutfit }
