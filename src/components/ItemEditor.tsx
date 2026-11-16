@@ -145,10 +145,10 @@ export function ItemEditor({ source, onSave, onCancel }: Props) {
           <img
             src={preview}
             alt=""
-            className={`h-full w-full object-contain p-4 transition ${isCutOut ? 'drop-shadow-[0_10px_16px_rgba(0,0,0,0.15)]' : 'mix-blend-multiply'} ${working ? 'opacity-50 blur-[1px]' : ''}`}
+            className={`absolute inset-0 h-full w-full object-contain p-4 transition ${isCutOut ? 'drop-shadow-[0_10px_16px_rgba(0,0,0,0.15)]' : 'mix-blend-multiply'} ${working ? 'opacity-50 blur-[1px]' : ''}`}
           />
         ) : source.existing && !loadingImage ? (
-          <ItemImage item={source.existing} className="h-full w-full p-4" />
+          <ItemImage item={source.existing} className="absolute inset-0 h-full w-full p-4" />
         ) : loadingImage ? (
           <div className="text-sm font-medium text-stone-400">Loading photo…</div>
         ) : (

@@ -50,8 +50,8 @@ export function ItemSheet({ item, onSave, onDelete, onClose }: Props) {
 
   return (
     <Sheet onClose={onClose}>
-      <div className="grid aspect-square w-full place-items-center overflow-hidden rounded-3xl bg-stone-100">
-        <ItemImage item={item} className="h-full w-full p-5" />
+      <div className="relative aspect-square w-full overflow-hidden rounded-3xl bg-stone-100">
+        <ItemImage item={item} className="absolute inset-0 h-full w-full p-5" />
       </div>
       <div className="mt-4 flex items-start justify-between gap-3">
         <div className="min-w-0">

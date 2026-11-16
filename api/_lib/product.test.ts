@@ -47,3 +47,10 @@ test('names products from share text and URL slugs when the page is blocked', as
   assert.equal(split.name, 'Thorium AR Quilted Nylon Down Jacket')
   assert.equal(split.color, 'Burgundy')
 })
+
+test('guesses shoes from sneaker model names and maps burgundy', async () => {
+  const { guessCategory, matchColor } = await import('../../src/lib/types.ts')
+  assert.equal(guessCategory('Nike Air Force 1 Low Supreme Comme des Garcons Shirt'), 'Shoes')
+  assert.equal(guessCategory('Supreme Box Logo Shirt'), 'Tops')
+  assert.equal(matchColor('Burgundy'), 'Burgundy')
+})
