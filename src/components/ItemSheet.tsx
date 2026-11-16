@@ -152,7 +152,7 @@ export function WearRow({ item, onToggle, onLogDay }: { item: Pick<Item, 'wears'
             aria-label="Log a past wear"
             className="rounded-lg bg-surface px-2 py-1 text-stone-800 ring-1 ring-stone-200"
             onChange={(event) => {
-              if (event.target.value) onLogDay(event.target.value)
+              if (event.target.value && event.target.value <= today) onLogDay(event.target.value)
               event.target.value = ''
             }}
           />
