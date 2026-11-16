@@ -74,7 +74,7 @@ export function matchColor(text: string | undefined): ColorName | undefined {
     ['Pink', /pink|rose|blush|magenta|fuchsia/],
     ['Purple', /purple|violet|lilac|lavender|plum/],
     ['Brown', /brown|chocolate|coffee|mocha|cognac|rust/],
-    ['Multi', /multi|print|floral|stripe|plaid|camo/],
+    ['Multi', /multi|multicolou?r|prints?|printed|florals?|stripes?|striped|plaid|checked|camo|camouflage|tie[- ]dye|patterned|graphic/],
   ]
   for (const [name, pattern] of aliases) if (new RegExp(`\\b(?:${pattern.source})\\b`).test(lower)) return name
   return COLORS.find((color) => new RegExp(`\\b${color.name.toLowerCase()}\\b`).test(lower))?.name

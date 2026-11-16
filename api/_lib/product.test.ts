@@ -69,4 +69,8 @@ test('matchColor does not match inside other words', async () => {
   assert.equal(matchColor('White Cotton Tank Top'), 'White')
   assert.equal(matchColor('Camel wool coat'), 'Beige')
   assert.equal(matchColor('Navy pants'), 'Navy')
+  assert.equal(matchColor('Multicolor'), 'Multi')
+  assert.equal(matchColor('Camouflage'), 'Multi')
+  assert.equal(matchColor('Striped Oxford Shirt'), 'Multi')
+  assert.equal(matchColor('Printed tee'), 'Multi')
 })
