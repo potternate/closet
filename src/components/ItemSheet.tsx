@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { PreparedImage } from '../lib/images'
+import { imageBlob } from '../lib/store'
 import { formatPrice, type Draft, type Item } from '../lib/types'
 import { costPerWear, dayKey, wearCount, wornLabel } from '../lib/wear'
 import { Swatch } from './Chips'
@@ -28,6 +29,7 @@ function hostOf(url: string) {
 export function ItemSheet({ item, onSave, onDelete, onToggleWorn, onLogDay, onBought, onClose }: Props) {
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [duplicating, setDuplicating] = useState(false)
 
   if (editing) {
     const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, image: _image, ...draft } = item
@@ -99,6 +101,24 @@ export function ItemSheet({ item, onSave, onDelete, onToggleWorn, onLogDay, onBo
           View on {hostOf(item.url)} ↗
         </a>
       )}
+
+      <button
+        disabled={duplicating}
+        onClick={async () => {
+          setDuplicating(true)
+          try {
+            const { id: _id, createdAt: _created, updatedAt: _updated, image: _image, wears: _wears, ...draft } = item
+            const blob = item.image ? await imageBlob(item.image) : undefined
+            await onSave(draft, blob && item.image ? { blob, type: item.image.type } : undefined)
+            onClose()
+          } finally {
+            setDuplicating(false)
+          }
+        }}
+        className="mt-4 w-full rounded-xl bg-stone-100 py-3 text-sm font-semibold text-stone-800 disabled:opacity-50"
+      >
+        {duplicating ? 'Duplicating…' : 'Duplicate item'}
+      </button>
 
       <div className="mt-5 grid grid-cols-2 gap-3">
         <button onClick={() => setEditing(true)} className="rounded-xl bg-stone-900 py-3 font-semibold text-stone-50">

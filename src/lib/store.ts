@@ -102,6 +102,19 @@ async function uploadImage(userId: string, item: Item) {
   return { ...item.image, path }
 }
 
+export async function imageBlob(image: NonNullable<Item['image']>): Promise<Blob | undefined> {
+  const local = await loadLocalImage(image.id)
+  if (local) return local
+  if (!supabase || !image.path) return undefined
+  const { data } = await supabase.storage.from(BUCKET).createSignedUrl(image.path, 60 * 60)
+  if (!data?.signedUrl) return undefined
+  const blob = await fetch(data.signedUrl)
+    .then((response) => (response.ok ? response.blob() : undefined))
+    .catch(() => undefined)
+  if (blob) void saveLocalImage(image.id, blob)
+  return blob
+}
+
 export async function imageUrl(image: NonNullable<Item['image']>): Promise<string | undefined> {
   const local = await loadLocalImage(image.id)
   if (local) return URL.createObjectURL(local)
