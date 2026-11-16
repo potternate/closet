@@ -273,7 +273,7 @@ export default function App() {
             closet.saveItem(
               tab === 'wishlist' ? { ...draft, wishlist: true } : draft,
               image,
-              draft.url ? closet.items.find((item) => item.url === draft.url && item.wishlist === (tab === 'wishlist')) : undefined,
+              draft.url ? closet.items.find((item) => item.url === draft.url && Boolean(item.wishlist) === (tab === 'wishlist')) : undefined,
             )
           }
         />
