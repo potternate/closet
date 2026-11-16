@@ -38,3 +38,18 @@ test('closetStats sums value in the most common currency and ranks wear', () => 
   assert.deepEqual(stats.mostWorn.map((i) => i.id), ['c', 'a', 'b'])
   assert.deepEqual(stats.bestValue.map((i) => i.id), ['b', 'a'])
 })
+
+
+test('closetStats counts items per season and items without a season', () => {
+  const stats = closetStats(
+    [
+      item('a', { seasons: ['Summer', 'Spring'] }),
+      item('b', { seasons: ['Summer'] }),
+      item('c', { seasons: [] }),
+    ],
+    [],
+  )
+  assert.deepEqual(stats.seasons.find((row) => row.key === 'Summer'), { key: 'Summer', count: 2 })
+  assert.deepEqual(stats.seasons.find((row) => row.key === 'Winter'), { key: 'Winter', count: 0 })
+  assert.equal(stats.noSeason, 1)
+})
