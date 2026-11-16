@@ -296,7 +296,6 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
       }
-      const current = stateRef.current
       commit({
         ...current,
         items: sortItems([item, ...current.items.filter((candidate) => candidate.id !== item.id)]),
@@ -328,9 +327,12 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
   const saveOutfit = useCallback(
     (draft: OutfitDraft, existing?: Outfit) => {
       const now = Date.now()
+      const current = stateRef.current
+      const stored = existing && current.outfits.records.find((candidate) => candidate.id === existing.id)
       const outfit: Outfit = {
         ...existing,
         ...draft,
+        wears: stored?.wears ?? existing?.wears,
         name: draft.name.trim() || 'Outfit',
         id: existing?.id ?? crypto.randomUUID(),
         createdAt: existing?.createdAt ?? now,
