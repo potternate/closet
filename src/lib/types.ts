@@ -24,6 +24,12 @@ export const COLORS = [
 ] as const
 export type ColorName = (typeof COLORS)[number]['name']
 
+export interface ItemPhoto {
+  id: string
+  type: 'image/png' | 'image/jpeg'
+  path?: string
+}
+
 export interface Item {
   id: string
   name: string
@@ -39,7 +45,8 @@ export interface Item {
   notes?: string
   wears?: string[]
   wishlist?: boolean
-  image?: { id: string; type: 'image/png' | 'image/jpeg'; path?: string }
+  image?: ItemPhoto
+  photos?: ItemPhoto[]
   createdAt: number
   updatedAt: number
 }
@@ -51,7 +58,12 @@ export const itemColors = (item: Pick<Item, 'color' | 'colors'>): ColorName[] =>
 
 export const withColors = (colors: ColorName[]) => ({ colors, color: colors[0] })
 
-export type Draft = Omit<Item, 'id' | 'createdAt' | 'updatedAt' | 'image'>
+// `image` is the cover (what older clients, the grid and collages show); `photos` are extra shots.
+export const itemPhotos = (item: Pick<Item, 'image' | 'photos'>): ItemPhoto[] => (item.image ? [item.image, ...(item.photos ?? [])] : (item.photos ?? []))
+
+export const withPhotos = (photos: ItemPhoto[]) => ({ image: photos[0], photos: photos.length > 1 ? photos.slice(1) : undefined })
+
+export type Draft = Omit<Item, 'id' | 'createdAt' | 'updatedAt' | 'image' | 'photos'>
 
 export const emptyDraft = (): Draft => ({ name: '', category: 'Tops', seasons: [] })
 

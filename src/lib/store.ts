@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from './supabase'
 import { deleteLocalImage, loadLocalImage, saveLocalImage, type PreparedImage } from './images'
 import type { Outfit, OutfitDraft } from './outfits'
-import type { Draft, Item } from './types'
+import { itemPhotos, withPhotos, type Draft, type Item, type ItemPhoto } from './types'
 import { toggleDay } from './wear'
 
 export type SyncStatus = 'local' | 'syncing' | 'synced' | 'error'
@@ -92,17 +92,25 @@ function merge(local: State, rows: Row<Item>[]): State {
   return { ...local, items: merged.records, deleted: merged.deleted, dirty: merged.dirty }
 }
 
-async function uploadImage(userId: string, item: Item) {
-  if (!supabase || !item.image || item.image.path) return item.image
-  const blob = await loadLocalImage(item.image.id)
-  if (!blob) return item.image
-  const path = `${userId}/${item.image.id}.${item.image.type === 'image/png' ? 'png' : 'jpg'}`
-  const { error } = await supabase.storage.from(BUCKET).upload(path, blob, { contentType: item.image.type, upsert: true })
+export type PhotoInput = ItemPhoto | PreparedImage
+
+async function uploadPhoto(userId: string, photo: ItemPhoto): Promise<ItemPhoto> {
+  if (!supabase || photo.path) return photo
+  const blob = await loadLocalImage(photo.id)
+  if (!blob) return photo
+  const path = `${userId}/${photo.id}.${photo.type === 'image/png' ? 'png' : 'jpg'}`
+  const { error } = await supabase.storage.from(BUCKET).upload(path, blob, { contentType: photo.type, upsert: true })
   if (error) throw error
-  return { ...item.image, path }
+  return { ...photo, path }
 }
 
-export async function imageBlob(image: NonNullable<Item['image']>): Promise<Blob | undefined> {
+async function uploadPhotos(userId: string, item: Item): Promise<Item> {
+  const photos = itemPhotos(item)
+  const uploaded = await Promise.all(photos.map((photo) => uploadPhoto(userId, photo)))
+  return uploaded.every((photo, index) => photo === photos[index]) ? item : { ...item, ...withPhotos(uploaded) }
+}
+
+export async function imageBlob(image: ItemPhoto): Promise<Blob | undefined> {
   const local = await loadLocalImage(image.id)
   if (local) return local
   if (!supabase || !image.path) return undefined
@@ -115,7 +123,7 @@ export async function imageBlob(image: NonNullable<Item['image']>): Promise<Blob
   return blob
 }
 
-export async function imageUrl(image: NonNullable<Item['image']>): Promise<string | undefined> {
+export async function imageUrl(image: ItemPhoto): Promise<string | undefined> {
   const local = await loadLocalImage(image.id)
   if (local) return URL.createObjectURL(local)
   if (!supabase || !image.path) return undefined
@@ -165,8 +173,7 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
       for (const id of current.dirty) {
         const item = current.items.find((candidate) => candidate.id === id)
         if (item) {
-          const image = await uploadImage(userId, item)
-          const uploaded = image === item.image ? item : { ...item, image }
+          const uploaded = await uploadPhotos(userId, item)
           const { error: upsertError } = await supabase
             .from('closet_items')
             .upsert({ user_id: userId, id, data: uploaded, deleted: false, updated_at: new Date(uploaded.updatedAt).toISOString() })
@@ -290,22 +297,28 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
   }, [sync, userId])
 
   const saveItem = useCallback(
-    async (draft: Draft, image: PreparedImage | undefined, existing?: Item) => {
+    // `photos` is the full ordered list (first = cover); undefined keeps the existing photos.
+    async (draft: Draft, photos: PhotoInput[] | undefined, existing?: Item) => {
       const now = Date.now()
-      let nextImage = existing?.image
-      const replaced = image ? existing?.image : undefined
-      if (image) {
-        const id = crypto.randomUUID()
-        await saveLocalImage(id, image.blob)
-        nextImage = { id, type: image.type }
-      }
-      if (replaced) void deleteLocalImage(replaced.id)
+      const previous = existing ? itemPhotos(existing) : []
+      const next = photos
+        ? await Promise.all(
+            photos.map(async (photo) => {
+              if (!('blob' in photo)) return photo
+              const id = crypto.randomUUID()
+              await saveLocalImage(id, photo.blob)
+              return { id, type: photo.type }
+            }),
+          )
+        : previous
+      const removed = previous.filter((photo) => !next.some((kept) => kept.id === photo.id))
+      for (const photo of removed) void deleteLocalImage(photo.id)
       const item: Item = {
         ...draft,
         wears: stateRef.current.items.find((candidate) => candidate.id === existing?.id)?.wears ?? draft.wears,
         name: draft.name.trim() || draft.category,
         id: existing?.id ?? crypto.randomUUID(),
-        image: nextImage,
+        ...withPhotos(next),
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
       }
@@ -314,7 +327,7 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
         ...current,
         items: sortItems([item, ...current.items.filter((candidate) => candidate.id !== item.id)]),
         dirty: markDirty(current.dirty, item.id),
-        trash: trashPath(current.trash, replaced),
+        trash: trashPaths(current.trash, removed),
       })
       void syncAgain.current()
       return item
@@ -330,9 +343,9 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
         items: current.items.filter((candidate) => candidate.id !== item.id),
         deleted: { ...current.deleted, [item.id]: Date.now() },
         dirty: markDirty(current.dirty, item.id),
-        trash: trashPath(current.trash, item.image),
+        trash: trashPaths(current.trash, itemPhotos(item)),
       })
-      if (item.image) void deleteLocalImage(item.image.id)
+      for (const photo of itemPhotos(item)) void deleteLocalImage(photo.id)
       void syncAgain.current()
     },
     [commit],
@@ -414,7 +427,7 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
   )
 
   const patchItem = useCallback(
-    (id: string, patch: Partial<Omit<Item, 'id' | 'image' | 'createdAt' | 'updatedAt'>>) => {
+    (id: string, patch: Partial<Omit<Item, 'id' | 'image' | 'photos' | 'createdAt' | 'updatedAt'>>) => {
       const current = stateRef.current
       commit({
         ...current,
@@ -429,6 +442,7 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
   return { setWorn, patchItem, items: state.items, outfits: state.outfits.records, syncStatus, saveItem, deleteItem, saveOutfit, deleteOutfit }
 }
 
-function trashPath(trash: string[], image: Item['image']) {
-  return image?.path && !trash.includes(image.path) ? [...trash, image.path] : trash
+function trashPaths(trash: string[], photos: ItemPhoto[]) {
+  const paths = photos.flatMap((photo) => (photo.path && !trash.includes(photo.path) ? [photo.path] : []))
+  return paths.length ? [...trash, ...paths] : trash
 }

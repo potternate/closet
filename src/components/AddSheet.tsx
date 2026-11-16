@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import { extractLinks } from '../lib/links'
 import { fetchProductImage, importProduct, type ProductInfo } from '../lib/productImport'
 import { emptyDraft, guessBrand, guessCategory, matchColor, type Draft } from '../lib/types'
-import { prepareImage, type PreparedImage } from '../lib/images'
+import { prepareImage } from '../lib/images'
+import type { PhotoInput } from '../lib/store'
 import { ItemEditor, type EditorSource } from './ItemEditor'
 import { Sheet } from './Sheet'
 import { CameraIcon, LinkIcon, PhotosIcon } from './icons'
 
 interface Props {
-  onSave: (draft: Draft, image: PreparedImage | undefined) => Promise<unknown>
+  onSave: (draft: Draft, photos: PhotoInput[] | undefined) => Promise<unknown>
   onClose: () => void
   initialLink?: string
   title?: string
@@ -31,7 +32,7 @@ const productDraft = (product: ProductInfo): Draft => {
 async function firstImage(urls: string[]) {
   for (const url of urls.slice(0, 3)) {
     try {
-      return await prepareImage(await fetchProductImage(url))
+      return [await prepareImage(await fetchProductImage(url))]
     } catch {
       // try the next image
     }
@@ -115,8 +116,8 @@ export function AddSheet({ onSave, onClose, initialLink, title = 'Add to closet'
   return (
     <Sheet onClose={onClose}>
       {source ? (
-        <ItemEditor source={source} saveLabel={title} onCancel={() => setSource(undefined)} onSave={async (draft, image) => {
-          await onSave(draft, image)
+        <ItemEditor source={source} saveLabel={title} onCancel={() => setSource(undefined)} onSave={async (draft, photos) => {
+          await onSave(draft, photos)
           onClose()
         }} />
       ) : (

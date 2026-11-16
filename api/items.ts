@@ -4,8 +4,10 @@ import { errorResponse, FetchError, fetchPublic, parseUrl } from './_lib/fetchSa
 // lives in Supabase (`muse_config`) and is checked by the muse_* RPC functions,
 // so this endpoint needs no secrets of its own: the anon key below is public.
 // GET    /api/items           -> { items: [{ id, ...fields }] }
-// POST   /api/items           -> create. Body: item fields (name required) + optional `imageUrl`.
-// PATCH  /api/items           -> update. Body: { id, ...fields } merged into the item.
+// POST   /api/items           -> create. Body: item fields (name required) + optional `imageUrl` (cover) and
+//                                 `imageUrls` (more shots; the first becomes the cover when `imageUrl` is absent).
+// PATCH  /api/items           -> update. Body: { id, ...fields } merged into the item. `imageUrl` replaces the
+//                                 cover; `imageUrls` appends extra shots.
 // DELETE /api/items?id=...    -> tombstone so the item deletes on every synced device.
 // Image upload additionally needs SUPABASE_SERVICE_ROLE_KEY set on Vercel.
 
@@ -115,6 +117,38 @@ async function uploadImage(imageId: string, rawUrl: string, userId: string) {
   return { id: imageId, type, path, storagePath: path }
 }
 
+const MAX_PHOTOS = 8
+
+function imageUrlsOf(body: Record<string, unknown>) {
+  if (body.imageUrl !== undefined && typeof body.imageUrl !== 'string') throw new FetchError('imageUrl must be a string', 400)
+  if (body.imageUrls !== undefined && !isStringList(body.imageUrls)) throw new FetchError('imageUrls must be a list of URLs', 400)
+  const extra = ((body.imageUrls as string[] | undefined) ?? []).filter(Boolean)
+  const cover = (body.imageUrl as string | undefined) || undefined
+  if (extra.length + (cover ? 1 : 0) > MAX_PHOTOS) throw new FetchError(`An item holds at most ${MAX_PHOTOS} photos`, 400)
+  return { cover, extra }
+}
+
+type Photo = { id: string; type: string; path: string }
+
+// Uploads every URL or none: a failed download removes the photos already stored for this request.
+async function uploadImages(urls: string[], userId: string) {
+  const photos: Photo[] = []
+  try {
+    for (const url of urls) {
+      const { storagePath: _path, ...photo } = await uploadImage(crypto.randomUUID(), url, userId)
+      photos.push(photo)
+    }
+  } catch (error) {
+    await deleteImages(photos)
+    throw error
+  }
+  return photos
+}
+
+async function deleteImages(photos: Photo[]) {
+  await Promise.all(photos.map((photo) => deleteImage(photo.path)))
+}
+
 async function deleteImage(storagePath: string) {
   await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${storagePath}`, {
     method: 'DELETE',
@@ -165,19 +199,15 @@ export async function POST(request: Request) {
     draft.seasons ??= []
     const id = crypto.randomUUID()
     const now = Date.now()
-    let uploaded: string | undefined
-    let image: Record<string, unknown> | undefined
-    if (typeof body.imageUrl === 'string' && body.imageUrl) {
-      const uploaded_image = await uploadImage(crypto.randomUUID(), body.imageUrl, await rpc('muse_whoami', { tok }))
-      image = { id: uploaded_image.id, type: uploaded_image.type, path: uploaded_image.path }
-      uploaded = uploaded_image.storagePath
-    }
-    const data = { ...draft, id, image, createdAt: now, updatedAt: now }
+    const { cover, extra } = imageUrlsOf(body)
+    const urls = cover ? [cover, ...extra] : extra
+    const uploaded = urls.length ? await uploadImages(urls, await rpc('muse_whoami', { tok })) : []
+    const data = { ...draft, id, image: uploaded[0], photos: uploaded.length > 1 ? uploaded.slice(1) : undefined, createdAt: now, updatedAt: now }
     try {
       return Response.json({ item: await rpc('muse_create', { tok, item: data }) }, { status: 201 })
     } catch (error) {
       // Only clean up on a definitive rejection — a lost response can still mean the write committed.
-      if (uploaded && error instanceof FetchError && error.status < 500) await deleteImage(uploaded)
+      if (error instanceof FetchError && error.status < 500) await deleteImages(uploaded)
       throw error
     }
   } catch (error) {
@@ -191,16 +221,28 @@ export async function PATCH(request: Request) {
     const body = (await request.json()) as Record<string, unknown>
     const id = checkId(body.id)
     const patch = checkDraft(body)
-    let uploaded: string | undefined
-    if (typeof body.imageUrl === 'string' && body.imageUrl) {
-      const image = await uploadImage(crypto.randomUUID(), body.imageUrl, await rpc('muse_whoami', { tok }))
-      patch.image = { id: image.id, type: image.type, path: image.path }
-      uploaded = image.storagePath
+    const { cover, extra } = imageUrlsOf(body)
+    let current: Record<string, unknown> | undefined
+    if (extra.length) {
+      const items = ((await rpc('muse_list', { tok })) ?? []) as Record<string, unknown>[]
+      current = items.find((item) => item.id === id)
+      if (!current) throw new FetchError('Item not found', 404)
+      const kept = (Array.isArray(current.photos) ? current.photos.length : 0) + (cover || current.image ? 1 : 0)
+      if (kept + extra.length > MAX_PHOTOS) throw new FetchError(`An item holds at most ${MAX_PHOTOS} photos`, 400)
+    }
+    const uploaded = cover || extra.length ? await uploadImages(cover ? [cover, ...extra] : extra, await rpc('muse_whoami', { tok })) : []
+    if (cover) patch.image = uploaded[0]
+    if (current) {
+      // Extra shots append after the existing ones; an item with no cover gets the first one as its cover.
+      // Only touch `image` when it was empty, so a concurrent cover replacement isn't written back over.
+      const added = [...(Array.isArray(current.photos) ? current.photos : []), ...uploaded.slice(patch.image ? 1 : 0)]
+      if (!patch.image && !current.image) patch.image = added.shift()
+      patch.photos = added
     }
     try {
       return Response.json({ item: await rpc('muse_update', { tok, item_id: id, patch }) })
     } catch (error) {
-      if (uploaded && error instanceof FetchError && error.status < 500) await deleteImage(uploaded)
+      if (error instanceof FetchError && error.status < 500) await deleteImages(uploaded)
       throw error
     }
   } catch (error) {
