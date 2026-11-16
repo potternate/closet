@@ -54,3 +54,14 @@ export const SlidersIcon = ({ className = 'h-5 w-5' }: { className?: string }) =
     <circle cx="10" cy="17" r="2" />
   </svg>
 )
+export const ShuffleIcon = ({ className = 'h-5 w-5' }: { className?: string }) => (
+  <svg {...base} className={className}>
+    <path d="M16 4h4v4M4 20 20 4M20 16v4h-4M15 15l5 5M4 4l5 5" />
+  </svg>
+)
+export const LayersIcon = ({ className = 'h-5 w-5' }: { className?: string }) => (
+  <svg {...base} className={className}>
+    <path d="m12 3 9 5-9 5-9-5 9-5Z" />
+    <path d="m3 13 9 5 9-5" />
+  </svg>
+)
