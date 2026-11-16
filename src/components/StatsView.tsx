@@ -20,13 +20,13 @@ export function StatsView({ items, outfits, onOpen }: Props) {
         <Tile label="Items" value={String(stats.count)} />
         <Tile label="Outfits" value={String(stats.outfits)} />
         <Tile
-          label={stats.value.priced === stats.count ? 'Closet value' : `Value of ${stats.value.priced} priced`}
-          value={formatPrice(stats.value.amount, stats.value.currency) ?? '—'}
+          label={stats.value.priced === stats.count || !stats.value.priced ? 'Closet value' : `Value of ${stats.value.priced} priced`}
+          value={stats.value.priced ? (formatPrice(stats.value.amount, stats.value.currency) ?? '—') : '—'}
         />
         <Tile label="Wears logged" value={String(stats.wears)} />
       </div>
       <Card title="By category">
-        <Bars rows={stats.categories} total={stats.count} />
+        <Bars rows={stats.categories} total={Math.max(...stats.categories.map((row) => row.count))} />
       </Card>
       {stats.colors.length > 0 && (
         <Card title="Colors">
