@@ -9,19 +9,20 @@ interface State {
   items: Item[]
   deleted: Record<string, number>
   dirty: string[]
+  trash: string[]
 }
 
 const BUCKET = 'closet-photos'
 const GUEST_KEY = 'closet:v1'
 const storageKey = (userId?: string) => (userId ? `${GUEST_KEY}:user:${userId}` : GUEST_KEY)
-const emptyState = (): State => ({ items: [], deleted: {}, dirty: [] })
+const emptyState = (): State => ({ items: [], deleted: {}, dirty: [], trash: [] })
 
 function load(key: string): State {
   try {
     const raw = localStorage.getItem(key)
     if (!raw) return emptyState()
     const parsed = JSON.parse(raw) as Partial<State>
-    return { items: parsed.items ?? [], deleted: parsed.deleted ?? {}, dirty: parsed.dirty ?? [] }
+    return { items: parsed.items ?? [], deleted: parsed.deleted ?? {}, dirty: parsed.dirty ?? [], trash: parsed.trash ?? [] }
   } catch {
     return emptyState()
   }
@@ -30,6 +31,8 @@ function load(key: string): State {
 function persist(key: string, state: State) {
   localStorage.setItem(key, JSON.stringify(state))
 }
+
+class StaleSync extends Error {}
 
 const sortItems = (items: Item[]) => [...items].sort((a, b) => b.createdAt - a.createdAt)
 const markDirty = (dirty: string[], id: string) => (dirty.includes(id) ? dirty : [...dirty, id])
@@ -63,7 +66,7 @@ function merge(local: State, rows: Row[]): State {
   }
   const remoteIds = new Set(rows.map((row) => row.id))
   for (const id of [...items.keys(), ...Object.keys(deleted)]) if (!remoteIds.has(id)) dirty.add(id)
-  return { items: sortItems([...items.values()]), deleted, dirty: [...dirty] }
+  return { ...local, items: sortItems([...items.values()]), deleted, dirty: [...dirty] }
 }
 
 async function uploadImage(userId: string, item: Item) {
@@ -113,9 +116,14 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
     }
     syncing.current = true
     setSyncStatus('syncing')
+    const accountKey = storageKey(userId)
+    const ensureSameAccount = () => {
+      if (keyRef.current !== accountKey) throw new StaleSync()
+    }
     try {
       const { data, error } = await supabase.from('closet_items').select('id, data, deleted, updated_at')
       if (error) throw error
+      ensureSameAccount()
       let current = merge(stateRef.current, (data ?? []) as Row[])
       commit(current)
       for (const id of current.dirty) {
@@ -127,6 +135,7 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
             .from('closet_items')
             .upsert({ user_id: userId, id, data: uploaded, deleted: false, updated_at: new Date(uploaded.updatedAt).toISOString() })
           if (upsertError) throw upsertError
+          ensureSameAccount()
           current = stateRef.current
           commit({
             ...current,
@@ -139,13 +148,23 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
             .from('closet_items')
             .upsert({ user_id: userId, id, data: { id }, deleted: true, updated_at: new Date(deletedAt).toISOString() })
           if (deleteError) throw deleteError
+          ensureSameAccount()
           current = stateRef.current
           commit({ ...current, dirty: current.dirty.filter((dirtyId) => dirtyId !== id) })
         }
         current = stateRef.current
       }
+      const trash = stateRef.current.trash
+      if (trash.length && !stateRef.current.dirty.length) {
+        const { error: removeError } = await supabase.storage.from(BUCKET).remove(trash)
+        if (removeError) throw removeError
+        ensureSameAccount()
+        current = stateRef.current
+        commit({ ...current, trash: current.trash.filter((path) => !trash.includes(path)) })
+      }
       setSyncStatus('synced')
     } catch (error) {
+      if (error instanceof StaleSync) return
       console.error(error)
       setSyncStatus('error')
     } finally {
@@ -180,6 +199,17 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
   }, [authLoading, commit, key, sync, userId])
 
   useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== keyRef.current) return
+      const next = load(keyRef.current)
+      stateRef.current = next
+      setState(next)
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+
+  useEffect(() => {
     if (!userId) return
     const onVisible = () => document.visibilityState === 'visible' && void sync()
     document.addEventListener('visibilitychange', onVisible)
@@ -194,12 +224,13 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
     async (draft: Draft, image: PreparedImage | undefined, existing?: Item) => {
       const now = Date.now()
       let nextImage = existing?.image
+      const replaced = image ? existing?.image : undefined
       if (image) {
         const id = crypto.randomUUID()
         await saveLocalImage(id, image.blob)
         nextImage = { id, type: image.type }
-        if (existing?.image) void removeImage(existing.image)
       }
+      if (replaced) void deleteLocalImage(replaced.id)
       const item: Item = {
         ...draft,
         name: draft.name.trim() || draft.category,
@@ -213,6 +244,7 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
         ...current,
         items: sortItems([item, ...current.items.filter((candidate) => candidate.id !== item.id)]),
         dirty: markDirty(current.dirty, item.id),
+        trash: trashPath(current.trash, replaced),
       })
       void sync()
       return item
@@ -227,8 +259,9 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
         items: current.items.filter((candidate) => candidate.id !== item.id),
         deleted: { ...current.deleted, [item.id]: Date.now() },
         dirty: markDirty(current.dirty, item.id),
+        trash: trashPath(current.trash, item.image),
       })
-      if (item.image) void removeImage(item.image)
+      if (item.image) void deleteLocalImage(item.image.id)
       void sync()
     },
     [commit, sync],
@@ -237,7 +270,6 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
   return { items: state.items, syncStatus, saveItem, deleteItem }
 }
 
-async function removeImage(image: NonNullable<Item['image']>) {
-  await deleteLocalImage(image.id)
-  if (supabase && image.path) await supabase.storage.from(BUCKET).remove([image.path])
+function trashPath(trash: string[], image: Item['image']) {
+  return image?.path && !trash.includes(image.path) ? [...trash, image.path] : trash
 }
