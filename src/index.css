@@ -43,3 +43,8 @@ body {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+:root[data-theme='dark'] .mix-blend-multiply {
+  mix-blend-mode: normal;
+  border-radius: 0.75rem;
+}
