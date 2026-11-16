@@ -39,11 +39,44 @@ function checkId(id: unknown): string {
   return id
 }
 
+const CATEGORIES = ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Bags', 'Accessories', 'Activewear', 'Other']
+const SEASONS = ['Spring', 'Summer', 'Fall', 'Winter']
+
+function isStringList(value: unknown, allowed?: readonly string[]) {
+  return Array.isArray(value) && value.every((entry) => typeof entry === 'string' && (!allowed || allowed.includes(entry)))
+}
+
 function checkDraft(body: Record<string, unknown>) {
-  const allowed = ['name', 'category', 'color', 'brand', 'size', 'price', 'currency', 'seasons', 'url', 'notes', 'wears', 'wishlist'] as const
   const draft: Record<string, unknown> = {}
-  for (const key of allowed) if (body[key] !== undefined) draft[key] = body[key]
-  if (body.price !== undefined) draft.price = Number(body.price)
+  const strings = ['name', 'color', 'brand', 'size', 'currency', 'url', 'notes'] as const
+  for (const key of strings) {
+    if (body[key] === undefined) continue
+    if (typeof body[key] !== 'string') throw new FetchError(`${key} must be a string`, 400)
+    draft[key] = body[key]
+  }
+  if (body.category !== undefined) {
+    if (typeof body.category !== 'string' || !CATEGORIES.includes(body.category)) {
+      throw new FetchError(`category must be one of: ${CATEGORIES.join(', ')}`, 400)
+    }
+    draft.category = body.category
+  }
+  if (body.seasons !== undefined) {
+    if (!isStringList(body.seasons, SEASONS)) throw new FetchError(`seasons must be a list of: ${SEASONS.join(', ')}`, 400)
+    draft.seasons = body.seasons
+  }
+  if (body.wears !== undefined) {
+    if (!isStringList(body.wears)) throw new FetchError('wears must be a list of date strings', 400)
+    draft.wears = body.wears
+  }
+  if (body.wishlist !== undefined) {
+    if (typeof body.wishlist !== 'boolean') throw new FetchError('wishlist must be a boolean', 400)
+    draft.wishlist = body.wishlist
+  }
+  if (body.price !== undefined) {
+    const price = Number(body.price)
+    if (!Number.isFinite(price) || price < 0) throw new FetchError('price must be a non-negative number', 400)
+    draft.price = price
+  }
   return draft
 }
 
@@ -62,7 +95,9 @@ async function uploadImage(imageId: string, rawUrl: string) {
 }
 
 async function getRow(id: string) {
-  const rows = (await postgrest(`closet_items?user_id=eq.${USER_ID}&id=eq.${id}&select=data`)) as { data: Record<string, unknown> }[]
+  const rows = (await postgrest(`closet_items?user_id=eq.${USER_ID}&id=eq.${id}&deleted=eq.false&select=data`)) as {
+    data: Record<string, unknown>
+  }[]
   return rows[0]?.data
 }
 
@@ -95,6 +130,8 @@ export async function POST(request: Request) {
     const body = (await request.json()) as Record<string, unknown>
     const draft = checkDraft(body)
     if (typeof draft.name !== 'string' || !draft.name.trim()) throw new FetchError('name is required', 400)
+    draft.category ??= 'Tops'
+    draft.seasons ??= []
     const id = crypto.randomUUID()
     const now = Date.now()
     const image = typeof body.imageUrl === 'string' && body.imageUrl ? await uploadImage(crypto.randomUUID(), body.imageUrl) : undefined
