@@ -269,7 +269,13 @@ export default function App() {
             setAdding(false)
             setShared(undefined)
           }}
-          onSave={(draft, image) => closet.saveItem(tab === 'wishlist' ? { ...draft, wishlist: true } : draft, image)}
+          onSave={(draft, image) =>
+            closet.saveItem(
+              tab === 'wishlist' ? { ...draft, wishlist: true } : draft,
+              image,
+              draft.url ? closet.items.find((item) => item.url === draft.url && Boolean(item.wishlist) === (tab === 'wishlist')) : undefined,
+            )
+          }
         />
       )}
       {openItem && (
