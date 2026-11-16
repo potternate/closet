@@ -104,6 +104,12 @@ export function ItemEditor({ source, onSave, onCancel, saveLabel = 'Add to close
     setSlots((all) => all.filter((slot) => slot.key !== key))
     setActiveKey((activeKey) => (activeKey === key ? fallback : activeKey))
   }
+  // A failed load only removes a slot that never held a photo; a failed replacement keeps the old one.
+  const failSlot = (key: string) => {
+    const slot = slotsRef.current.find((entry) => entry.key === key)
+    if (slot?.image || slot?.saved) patchSlot(key, { loading: false })
+    else dropSlot(key)
+  }
   const isCover = (key: string) => slotsRef.current[0]?.key === key
 
   const autoColor = async (key: string, blob: Blob) => {
@@ -149,7 +155,7 @@ export function ItemEditor({ source, onSave, onCancel, saveLabel = 'Add to close
       if (autoCut) runCutOut(key, prepared)
     } catch (error) {
       setImageError(error instanceof Error ? error.message : 'Couldn’t load that image')
-      dropSlot(key)
+      failSlot(key)
     }
   }
 
@@ -160,7 +166,7 @@ export function ItemEditor({ source, onSave, onCancel, saveLabel = 'Add to close
       await loadBlob(key, await fetchProductImage(url), false)
     } catch (error) {
       setImageError(error instanceof Error ? error.message : 'Couldn’t load that image')
-      dropSlot(key)
+      failSlot(key)
     }
   }
 
