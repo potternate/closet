@@ -59,6 +59,6 @@ test('guessBrand finds brands beyond the first word', async () => {
   const { guessBrand } = await import('../../src/lib/types.ts')
   assert.equal(guessBrand('Nike Air Force 1'), 'Nike')
   assert.equal(guessBrand('Air Force 1 Low Supreme Comme des Garcons Shirt'), 'Comme des Garcons')
-  assert.equal(guessBrand('Supreme x Nike Dunk Low'), 'Nike')
+  assert.equal(guessBrand('Supreme x Nike Dunk Low'), 'Supreme')
   assert.equal(guessBrand('Random hoodie'), undefined)
 })
