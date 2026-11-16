@@ -400,7 +400,20 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
     [commit, sync],
   )
 
-  return { setWorn, items: state.items, outfits: state.outfits.records, syncStatus, saveItem, deleteItem, saveOutfit, deleteOutfit }
+  const patchItem = useCallback(
+    (id: string, patch: Partial<Omit<Item, 'id' | 'image' | 'createdAt' | 'updatedAt'>>) => {
+      const current = stateRef.current
+      commit({
+        ...current,
+        items: current.items.map((item) => (item.id === id ? { ...item, ...patch, updatedAt: Date.now() } : item)),
+        dirty: markDirty(current.dirty, id),
+      })
+      void sync()
+    },
+    [commit, sync],
+  )
+
+  return { setWorn, patchItem, items: state.items, outfits: state.outfits.records, syncStatus, saveItem, deleteItem, saveOutfit, deleteOutfit }
 }
 
 function trashPath(trash: string[], image: Item['image']) {

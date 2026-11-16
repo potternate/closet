@@ -12,6 +12,7 @@ interface Props {
   onSave: (draft: Draft, image: PreparedImage | undefined, existing?: Item) => Promise<unknown>
   onDelete: (item: Item) => void
   onToggleWorn: (worn: boolean) => void
+  onBought: () => void
   onClose: () => void
 }
 
@@ -23,7 +24,7 @@ function hostOf(url: string) {
   }
 }
 
-export function ItemSheet({ item, onSave, onDelete, onToggleWorn, onClose }: Props) {
+export function ItemSheet({ item, onSave, onDelete, onToggleWorn, onBought, onClose }: Props) {
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -68,7 +69,13 @@ export function ItemSheet({ item, onSave, onDelete, onToggleWorn, onClose }: Pro
         )}
       </div>
 
-      <WearRow item={item} onToggle={onToggleWorn} />
+      {item.wishlist ? (
+        <button onClick={onBought} className="mt-4 w-full rounded-2xl bg-emerald-600 py-3 font-semibold text-white active:bg-emerald-700">
+          Bought it · move to closet
+        </button>
+      ) : (
+        <WearRow item={item} onToggle={onToggleWorn} />
+      )}
 
       {details.length > 0 && (
         <dl className="mt-4 grid grid-cols-2 gap-2">

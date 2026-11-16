@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react'
 import { useAuth } from './lib/auth'
 import { useCloset } from './lib/store'
-import { CATEGORIES, COLORS, SEASONS, type Category, type ColorName, type Item, type Season } from './lib/types'
+import { CATEGORIES, COLORS, formatPrice, SEASONS, type Category, type ColorName, type Item, type Season } from './lib/types'
 import { AccountSheet } from './components/AccountSheet'
 import { AddSheet } from './components/AddSheet'
 import { Chip, Swatch } from './components/Chips'
 import { ItemImage } from './components/ItemImage'
 import { ItemSheet } from './components/ItemSheet'
-import { HangerIcon, LayersIcon, PlusIcon, SearchIcon, SlidersIcon, UserIcon } from './components/icons'
+import { HangerIcon, HeartIcon, LayersIcon, PlusIcon, SearchIcon, SlidersIcon, UserIcon } from './components/icons'
 import { OutfitEditor } from './components/OutfitEditor'
 import { OutfitSheet } from './components/OutfitSheet'
 import { OutfitsView } from './components/OutfitsView'
@@ -27,19 +27,28 @@ export default function App() {
   const [openId, setOpenId] = useState<string>()
   const [showAccount, setShowAccount] = useState(false)
   const [sort, setSort] = useState<SortKey>('newest')
-  const [tab, setTab] = useState<'closet' | 'outfits'>('closet')
+  const [tab, setTab] = useState<'closet' | 'outfits' | 'wishlist'>('closet')
   const [openOutfitId, setOpenOutfitId] = useState<string>()
   const [outfitEditor, setOutfitEditor] = useState<{ existing?: Outfit; initialIds?: string[] }>()
 
+  const owned = useMemo(() => closet.items.filter((item) => !item.wishlist), [closet.items])
+  const wanted = useMemo(() => closet.items.filter((item) => item.wishlist), [closet.items])
+  const wantedTotal = useMemo(() => {
+    const priced = wanted.filter((item) => item.price !== undefined)
+    const currencies = new Set(priced.map((item) => (item.currency ?? 'USD').toUpperCase()))
+    if (currencies.size !== 1) return undefined
+    return formatPrice(priced.reduce((sum, item) => sum + (item.price ?? 0), 0), [...currencies][0])
+  }, [wanted])
+
   const counts = useMemo(() => {
     const result = new Map<string, number>()
-    for (const item of closet.items) result.set(item.category, (result.get(item.category) ?? 0) + 1)
+    for (const item of owned) result.set(item.category, (result.get(item.category) ?? 0) + 1)
     return result
-  }, [closet.items])
+  }, [owned])
 
   const visible = useMemo(() => {
     const words = query.toLowerCase().split(/\s+/).filter(Boolean)
-    const matches = closet.items.filter((item) => {
+    const matches = owned.filter((item) => {
       if (category !== 'All' && item.category !== category) return false
       if (color && item.color !== color) return false
       if (season && !item.seasons.includes(season)) return false
@@ -47,10 +56,10 @@ export default function App() {
       return words.every((word) => haystack.includes(word))
     })
     return sortItemsBy(matches, sort)
-  }, [category, closet.items, color, query, season, sort])
+  }, [category, owned, color, query, season, sort])
 
   const openItem = closet.items.find((item) => item.id === openId)
-  const usedColors = COLORS.filter((candidate) => closet.items.some((item) => item.color === candidate.name))
+  const usedColors = COLORS.filter((candidate) => owned.some((item) => item.color === candidate.name))
   const filtersActive = Boolean(color || season) || sort !== 'newest'
 
   const byId = new Map(closet.items.map((item) => [item.id, item]))
@@ -60,11 +69,13 @@ export default function App() {
     <div className="mx-auto min-h-dvh max-w-3xl px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-[calc(env(safe-area-inset-bottom)+10rem)]">
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-stone-900">{tab === 'closet' ? 'Closet' : 'Outfits'}</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-stone-900">{tab === 'closet' ? 'Closet' : tab === 'outfits' ? 'Outfits' : 'Wishlist'}</h1>
           <p className="text-sm text-stone-500">
             {tab === 'closet'
-              ? `${closet.items.length} ${closet.items.length === 1 ? 'item' : 'items'}`
-              : `${closet.outfits.length} ${closet.outfits.length === 1 ? 'outfit' : 'outfits'}`}
+              ? `${owned.length} ${owned.length === 1 ? 'item' : 'items'}`
+              : tab === 'outfits'
+                ? `${closet.outfits.length} ${closet.outfits.length === 1 ? 'outfit' : 'outfits'}`
+                : `${wanted.length} ${wanted.length === 1 ? 'item' : 'items'}${wantedTotal ? ` · ${wantedTotal}` : ''}`}
             {closet.syncStatus === 'error' && ' · sync paused'}
           </p>
         </div>
@@ -81,7 +92,7 @@ export default function App() {
         </button>
       </header>
 
-      {tab === 'closet' && closet.items.length > 0 && (
+      {tab === 'closet' && owned.length > 0 && (
         <>
           <div className="mt-4 flex gap-2">
             <label className="flex flex-1 items-center gap-2 rounded-xl bg-white px-3 ring-1 ring-stone-200 focus-within:ring-2 focus-within:ring-stone-900">
@@ -165,15 +176,31 @@ export default function App() {
         </>
       )}
 
-      {tab === 'outfits' ? (
+      {tab === 'wishlist' ? (
+        wanted.length ? (
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {wanted.map((item) => (
+              <ItemCard key={item.id} item={item} detail={formatPrice(item.price, item.currency) ?? item.brand} onOpen={() => setOpenId(item.id)} />
+            ))}
+          </div>
+        ) : (
+          <div className="mt-16 flex flex-col items-center text-center">
+            <div className="grid h-20 w-20 place-items-center rounded-full bg-white text-stone-400 shadow-sm ring-1 ring-stone-200">
+              <HeartIcon className="h-9 w-9" />
+            </div>
+            <h2 className="mt-5 text-lg font-semibold text-stone-900">Nothing on your wishlist</h2>
+            <p className="mt-1 max-w-xs text-sm text-stone-500">Save links to things you want. Tap “Bought it” when you get one and it moves into your closet.</p>
+          </div>
+        )
+      ) : tab === 'outfits' ? (
         <OutfitsView
           outfits={closet.outfits}
           byId={byId}
-          canShuffle={closet.items.length > 0}
+          canShuffle={owned.length > 0}
           onOpen={(outfit) => setOpenOutfitId(outfit.id)}
-          onShuffle={() => setOutfitEditor({ initialIds: shuffleOutfit(closet.items).map((item) => item.id) })}
+          onShuffle={() => setOutfitEditor({ initialIds: shuffleOutfit(owned).map((item) => item.id) })}
         />
-      ) : closet.items.length === 0 ? (
+      ) : owned.length === 0 ? (
         <EmptyState onAdd={() => setAdding(true)} />
       ) : visible.length === 0 ? (
         <p className="mt-16 text-center text-stone-400">Nothing matches.</p>
@@ -185,12 +212,12 @@ export default function App() {
         </div>
       )}
 
-      {(tab === 'closet' || closet.items.length > 0) && (
+      {(tab !== 'outfits' || owned.length > 0) && (
         <button
-          onClick={() => (tab === 'closet' ? setAdding(true) : setOutfitEditor({}))}
+          onClick={() => (tab === 'outfits' ? setOutfitEditor({}) : setAdding(true))}
           className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full bg-stone-900 py-3.5 pr-6 pl-5 font-semibold text-white shadow-xl shadow-stone-900/25 active:scale-95"
         >
-          <PlusIcon className="h-5 w-5" /> {tab === 'closet' ? 'Add item' : 'New outfit'}
+          <PlusIcon className="h-5 w-5" /> {tab === 'closet' ? 'Add item' : tab === 'outfits' ? 'New outfit' : 'Add to wishlist'}
         </button>
       )}
 
@@ -200,6 +227,7 @@ export default function App() {
             [
               ['closet', 'Closet', HangerIcon],
               ['outfits', 'Outfits', LayersIcon],
+              ['wishlist', 'Wishlist', HeartIcon],
             ] as const
           ).map(([id, label, Icon]) => (
             <button
@@ -215,7 +243,13 @@ export default function App() {
         </div>
       </nav>
 
-      {adding && <AddSheet onClose={() => setAdding(false)} onSave={(draft, image) => closet.saveItem(draft, image)} />}
+      {adding && (
+        <AddSheet
+          title={tab === 'wishlist' ? 'Add to wishlist' : 'Add to closet'}
+          onClose={() => setAdding(false)}
+          onSave={(draft, image) => closet.saveItem(tab === 'wishlist' ? { ...draft, wishlist: true } : draft, image)}
+        />
+      )}
       {openItem && (
         <ItemSheet
           item={openItem}
@@ -223,12 +257,13 @@ export default function App() {
           onSave={closet.saveItem}
           onDelete={closet.deleteItem}
           onToggleWorn={(worn) => closet.setWorn([openItem.id], dayKey(), worn)}
+          onBought={() => closet.patchItem(openItem.id, { wishlist: false })}
         />
       )}
       {outfitEditor && (
         <Sheet onClose={() => setOutfitEditor(undefined)}>
           <OutfitEditor
-            items={closet.items}
+            items={owned}
             existing={outfitEditor.existing}
             initialIds={outfitEditor.initialIds}
             onCancel={() => setOutfitEditor(undefined)}

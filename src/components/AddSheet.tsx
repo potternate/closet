@@ -10,9 +10,10 @@ interface Props {
   onSave: (draft: Draft, image: PreparedImage | undefined) => Promise<unknown>
   onClose: () => void
   initialLink?: string
+  title?: string
 }
 
-export function AddSheet({ onSave, onClose, initialLink }: Props) {
+export function AddSheet({ onSave, onClose, initialLink, title = 'Add to closet' }: Props) {
   const [link, setLink] = useState(initialLink ?? '')
   const [importing, setImporting] = useState(false)
   const [error, setError] = useState<string>()
@@ -67,14 +68,14 @@ export function AddSheet({ onSave, onClose, initialLink }: Props) {
   return (
     <Sheet onClose={onClose}>
       {source ? (
-        <ItemEditor source={source} onCancel={() => setSource(undefined)} onSave={async (draft, image) => {
+        <ItemEditor source={source} saveLabel={title} onCancel={() => setSource(undefined)} onSave={async (draft, image) => {
           await onSave(draft, image)
           onClose()
         }} />
       ) : (
         <>
           <div className="flex items-start justify-between">
-            <h2 className="text-2xl font-bold text-stone-900">Add to closet</h2>
+            <h2 className="text-2xl font-bold text-stone-900">{title}</h2>
             <button onClick={onClose} className="rounded-full bg-stone-100 px-3 py-1.5 text-sm font-semibold text-stone-500">
               Close
             </button>

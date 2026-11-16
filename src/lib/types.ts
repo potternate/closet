@@ -37,6 +37,7 @@ export interface Item {
   url?: string
   notes?: string
   wears?: string[]
+  wishlist?: boolean
   image?: { id: string; type: 'image/png' | 'image/jpeg'; path?: string }
   createdAt: number
   updatedAt: number
