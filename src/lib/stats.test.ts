@@ -9,7 +9,7 @@ test('closetStats tallies categories, colors and brands', () => {
   const stats = closetStats(
     [
       item('a', { category: 'Shoes', color: 'Black', brand: 'Nike' }),
-      item('b', { category: 'Tops', color: 'Black', brand: 'Nike ' }),
+      item('b', { category: 'Tops', color: 'Black', brand: 'nike ' }),
       item('c', { category: 'Shoes', color: 'White', brand: '' }),
     ],
     [],

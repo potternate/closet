@@ -8,9 +8,14 @@ export interface Tally<K extends string = string> {
 }
 
 const tally = <K extends string>(keys: (K | undefined)[]): Tally<K>[] => {
-  const counts = new Map<K, number>()
-  for (const key of keys) if (key) counts.set(key, (counts.get(key) ?? 0) + 1)
-  return [...counts].map(([key, count]) => ({ key, count })).sort((a, b) => b.count - a.count || a.key.localeCompare(b.key))
+  const counts = new Map<string, Tally<K>>()
+  for (const key of keys) {
+    if (!key) continue
+    const entry = counts.get(key.toLowerCase())
+    if (entry) entry.count++
+    else counts.set(key.toLowerCase(), { key, count: 1 })
+  }
+  return [...counts.values()].sort((a, b) => b.count - a.count || a.key.localeCompare(b.key))
 }
 
 export function closetStats(items: Item[], outfits: Outfit[]) {
