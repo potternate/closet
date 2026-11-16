@@ -180,6 +180,13 @@ export function AccountSheet({ user, loading, configured, error, syncStatus, onS
           ))}
         </div>
       </div>
+      <div className="mt-6">
+        <div className="text-xs font-semibold tracking-wide text-stone-400 uppercase">Tips</div>
+        <ul className="mt-2 list-disc space-y-1.5 rounded-2xl bg-stone-50 py-3 pr-3 pl-8 text-sm text-stone-600 ring-1 ring-stone-100">
+          <li>Add to your Home Screen from Safari: Share → <b>Add to Home Screen</b>.</li>
+          <li>Share a store link straight into Closet with the Shortcut in the README, or paste several links at once.</li>
+        </ul>
+      </div>
       {error && <p className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600">{error}</p>}
     </Sheet>
   )
