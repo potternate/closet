@@ -22,7 +22,7 @@ const productDraft = (product: ProductInfo): Draft => {
     brand: product.brand ?? guessBrand(product.name),
     price: product.price,
     currency: product.currency,
-    color: matchColor(product.color),
+    color: matchColor(product.color) ?? matchColor(product.name) ?? matchColor(product.description),
     category: guessCategory(product.name ?? '') ?? guessCategory(text) ?? 'Other',
     url: product.url,
   }

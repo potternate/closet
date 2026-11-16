@@ -101,5 +101,11 @@ const BRANDS = [
 export function guessBrand(name: string | undefined) {
   if (!name) return undefined
   const lower = name.toLowerCase()
-  return [...BRANDS].sort((a, b) => b.length - a.length).find((brand) => lower.startsWith(`${brand.toLowerCase()} `))
+  const brands = [...BRANDS].sort((a, b) => b.length - a.length)
+  const prefix = brands.find((brand) => lower.startsWith(`${brand.toLowerCase()} `))
+  if (prefix) return prefix
+  return brands.find((brand) => {
+    const index = lower.indexOf(` ${brand.toLowerCase()} `)
+    return index > 0 || lower.endsWith(` ${brand.toLowerCase()}`)
+  })
 }

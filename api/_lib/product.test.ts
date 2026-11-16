@@ -54,3 +54,11 @@ test('guesses shoes from sneaker model names and maps burgundy', async () => {
   assert.equal(guessCategory('Supreme Box Logo Shirt'), 'Tops')
   assert.equal(matchColor('Burgundy'), 'Burgundy')
 })
+
+test('guessBrand finds brands beyond the first word', async () => {
+  const { guessBrand } = await import('../../src/lib/types.ts')
+  assert.equal(guessBrand('Nike Air Force 1'), 'Nike')
+  assert.equal(guessBrand('Air Force 1 Low Supreme Comme des Garcons Shirt'), 'Comme des Garcons')
+  assert.equal(guessBrand('Supreme x Nike Dunk Low'), 'Nike')
+  assert.equal(guessBrand('Random hoodie'), undefined)
+})
