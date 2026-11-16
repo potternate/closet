@@ -303,7 +303,7 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
         dirty: markDirty(current.dirty, item.id),
         trash: trashPath(current.trash, replaced),
       })
-      void sync()
+      void syncAgain.current()
       return item
     },
     [commit, sync],
@@ -320,7 +320,7 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
         trash: trashPath(current.trash, item.image),
       })
       if (item.image) void deleteLocalImage(item.image.id)
-      void sync()
+      void syncAgain.current()
     },
     [commit, sync],
   )
@@ -347,7 +347,7 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
           dirty: markDirty(current.outfits.dirty, outfit.id),
         },
       })
-      void sync()
+      void syncAgain.current()
       return outfit
     },
     [commit, sync],
@@ -364,7 +364,7 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
           dirty: markDirty(current.outfits.dirty, outfit.id),
         },
       })
-      void sync()
+      void syncAgain.current()
     },
     [commit, sync],
   )
@@ -395,7 +395,7 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
           }
         : current.outfits
       commit({ ...current, items, dirty, outfits })
-      void sync()
+      void syncAgain.current()
     },
     [commit, sync],
   )
@@ -408,7 +408,7 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
         items: current.items.map((item) => (item.id === id ? { ...item, ...patch, updatedAt: Date.now() } : item)),
         dirty: markDirty(current.dirty, id),
       })
-      void sync()
+      void syncAgain.current()
     },
     [commit, sync],
   )
