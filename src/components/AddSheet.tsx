@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { extractLinks } from '../lib/links'
 import { fetchProductImage, importProduct, type ProductInfo } from '../lib/productImport'
 import { emptyDraft, guessBrand, guessCategory, matchColor, type Draft } from '../lib/types'
@@ -87,6 +87,14 @@ export function AddSheet({ onSave, onClose, initialLink, title = 'Add to closet'
     if (failed.length) setLink(failed.join('\n'))
     else onClose()
   }
+
+  const autoImported = useRef(false)
+  useEffect(() => {
+    if (!initialLink || autoImported.current) return
+    autoImported.current = true
+    void runImport(initialLink)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const pasteAndImport = async () => {
     try {

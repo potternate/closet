@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from './lib/auth'
 import { useCloset } from './lib/store'
 import { CATEGORIES, COLORS, formatPrice, SEASONS, type Category, type ColorName, type Item, type Season } from './lib/types'
@@ -24,13 +24,18 @@ export default function App() {
   const [color, setColor] = useState<ColorName>()
   const [season, setSeason] = useState<Season>()
   const [showFilters, setShowFilters] = useState(false)
-  const [adding, setAdding] = useState(false)
+  const [shared, setShared] = useState(readSharedLink)
+  const [adding, setAdding] = useState(Boolean(shared))
   const [openId, setOpenId] = useState<string>()
   const [showAccount, setShowAccount] = useState(false)
   const [sort, setSort] = useState<SortKey>('newest')
-  const [tab, setTab] = useState<'closet' | 'outfits' | 'wishlist' | 'stats'>('closet')
+  const [tab, setTab] = useState<'closet' | 'outfits' | 'wishlist' | 'stats'>(shared?.wishlist ? 'wishlist' : 'closet')
   const [openOutfitId, setOpenOutfitId] = useState<string>()
   const [outfitEditor, setOutfitEditor] = useState<{ existing?: Outfit; initialIds?: string[] }>()
+
+  useEffect(() => {
+    if (shared) history.replaceState(null, '', location.pathname)
+  }, [shared])
 
   const owned = useMemo(() => closet.items.filter((item) => !item.wishlist), [closet.items])
   const wanted = useMemo(() => closet.items.filter((item) => item.wishlist), [closet.items])
@@ -259,7 +264,11 @@ export default function App() {
       {adding && (
         <AddSheet
           title={tab === 'wishlist' ? 'Add to wishlist' : 'Add to closet'}
-          onClose={() => setAdding(false)}
+          initialLink={shared?.text}
+          onClose={() => {
+            setAdding(false)
+            setShared(undefined)
+          }}
           onSave={(draft, image) => closet.saveItem(tab === 'wishlist' ? { ...draft, wishlist: true } : draft, image)}
         />
       )}
@@ -352,4 +361,10 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
       </button>
     </div>
   )
+}
+
+function readSharedLink() {
+  const params = new URLSearchParams(location.search)
+  const text = [params.get('add'), params.get('text'), params.get('url')].filter(Boolean).join(' ').trim()
+  return text ? { text, wishlist: params.get('to') === 'wishlist' } : undefined
 }

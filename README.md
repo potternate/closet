@@ -8,6 +8,16 @@ A phone-first digital closet. Add clothes by pasting a product link from any sto
 - **Photos**: images are resized in the browser, and backgrounds are removed on-device with [`@imgly/background-removal`](https://github.com/imgly/background-removal-js) (AGPL-3.0; model files load from IMG.LY's CDN the first time). The main color is detected automatically.
 - **Storage**: the app works signed out (items in `localStorage`, photos in IndexedDB). Signing in with an emailed 6-digit code syncs items to Supabase table `closet_items` and photos to the private `closet-photos` bucket (`{userId}/...`). Anything added before signing in moves into the account.
 
+## Add from the Share sheet
+
+Opening `/?add=<link or share text>` opens Add item and imports it straight away. Add `&to=wishlist` to send it to the Wishlist. Several links import together. On Android the installed app shows up in the Share sheet by itself. On iPhone, make a Shortcut:
+
+1. Shortcuts app, then **+**. Tap the info button and turn on **Show in Share Sheet**. Set it to receive **URLs** and **Text**.
+2. Add **URL Encode** with **Shortcut Input**.
+3. Add **Open URLs** with `https://closet-zeta-lemon.vercel.app/?add=` followed by the **URL Encoded Text** variable.
+
+Duplicate it and add `&to=wishlist` to the end for a "Add to Wishlist" version.
+
 ## Development
 
 ```bash
