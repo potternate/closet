@@ -5,7 +5,7 @@ A phone-first digital closet. Add clothes by pasting a product link from any sto
 ## How it works
 
 - **Product links**: `api/product.ts` (a Vercel function) reads the page's JSON-LD / Open Graph data for the name, brand, price, color, and photos. If the store blocks the request, it falls back to [Microlink](https://microlink.io) (free tier, no key) and then to the link text / URL slug. `api/image.ts` proxies product photos so the browser can process them. Both reject private and internal addresses.
-- **Photos**: images are resized in the browser, and backgrounds are removed on-device with [`@imgly/background-removal`](https://github.com/imgly/background-removal-js) (AGPL-3.0; model files load from IMG.LY's CDN the first time). The main color is detected automatically.
+- **Photos**: images are resized in the browser, and backgrounds are removed on-device with [BRIA RMBG-1.4](https://huggingface.co/briaai/RMBG-1.4) via [Transformers.js](https://github.com/huggingface/transformers.js) (the ~88 MB model loads from Hugging Face the first time, then stays cached; RMBG-1.4 is licensed for non-commercial use). The main color is detected automatically.
 - **Storage**: the app works signed out (items in `localStorage`, photos in IndexedDB). Signing in with an emailed 6-digit code syncs items to Supabase table `closet_items` and photos to the private `closet-photos` bucket (`{userId}/...`). Anything added before signing in moves into the account.
 
 ## Add from the Share sheet
