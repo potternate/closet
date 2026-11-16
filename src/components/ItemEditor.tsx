@@ -35,6 +35,7 @@ export function ItemEditor({ source, onSave, onCancel }: Props) {
   const [cut, setCut] = useState<CutState>({ status: 'idle' })
   const [pickedUrl, setPickedUrl] = useState(source.imageUrls?.[0])
   const [saving, setSaving] = useState(false)
+  const [priceText, setPriceText] = useState(source.draft.price?.toString() ?? '')
   const colorTouched = useRef(Boolean(source.draft.color))
   const replaceInput = useRef<HTMLInputElement>(null)
   const runId = useRef(0)
@@ -265,10 +266,12 @@ export function ItemEditor({ source, onSave, onCancel }: Props) {
           <input
             className={inputClass}
             inputMode="decimal"
-            value={draft.price ?? ''}
+            value={priceText}
             onChange={(event) => {
               const value = event.target.value.replace(/[^\d.]/g, '')
-              update({ price: value ? Number(value) : undefined })
+              setPriceText(value)
+              const price = parseFloat(value)
+              update({ price: Number.isFinite(price) ? price : undefined })
             }}
           />
         </label>
