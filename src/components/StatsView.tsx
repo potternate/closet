@@ -45,6 +45,12 @@ export function StatsView({ items, outfits, onOpen }: Props) {
           </div>
         </Card>
       )}
+      {stats.seasons.some((row) => row.count) && (
+        <Card title="By season">
+          <Bars rows={stats.seasons} total={Math.max(...stats.seasons.map((row) => row.count))} />
+          {stats.noSeason > 0 && <p className="mt-3 text-xs text-stone-400">{stats.noSeason} {stats.noSeason === 1 ? 'item has' : 'items have'} no season set.</p>}
+        </Card>
+      )}
       {stats.brands.length > 0 && (
         <Card title="Top brands">
           <Bars rows={stats.brands} total={stats.brands[0].count} />
