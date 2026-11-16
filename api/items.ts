@@ -112,10 +112,11 @@ async function deleteImage(storagePath: string) {
 // GET filters: ?q=words&category=Shoes&color=Black&brand=nike&wishlist=true|false
 function filterItems(items: Record<string, unknown>[], params: URLSearchParams) {
   const text = (value: unknown) => (typeof value === 'string' ? value.toLowerCase() : '')
-  const loose = (value: unknown) => text(value).replace(/[^\p{L}\p{N}\s]/gu, '')
-  const words = loose(params.get('q')).split(/\s+/).filter(Boolean)
+  const loose = (value: unknown) => text(value).replace(/['’`.]/g, '')
+  const term = (value: string) => loose(value) || value
+  const words = text(params.get('q')).split(/\s+/).filter(Boolean).map(term)
   const exact = (['category', 'color'] as const).map((key) => [key, text(params.get(key))] as const).filter(([, value]) => value)
-  const brand = loose(params.get('brand'))
+  const brand = term(text(params.get('brand')))
   const wishlist = params.get('wishlist')?.toLowerCase()
   if (wishlist !== undefined && wishlist !== 'true' && wishlist !== 'false') {
     throw new FetchError('wishlist must be true or false', 400)
