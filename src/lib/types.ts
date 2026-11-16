@@ -45,7 +45,9 @@ export interface Item {
 }
 
 // `colors` is the full list (first = primary); `color` mirrors the primary for older clients.
-export const itemColors = (item: Pick<Item, 'color' | 'colors'>): ColorName[] => item.colors ?? (item.color ? [item.color] : [])
+// If they disagree, an older client edited `color` last, so it wins.
+export const itemColors = (item: Pick<Item, 'color' | 'colors'>): ColorName[] =>
+  item.colors && item.colors[0] === (item.color ?? undefined) ? item.colors : item.color ? [item.color] : []
 
 export const withColors = (colors: ColorName[]) => ({ colors, color: colors[0] })
 

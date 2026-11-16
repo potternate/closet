@@ -19,7 +19,8 @@ const SEASONS = ['Spring', 'Summer', 'Fall', 'Winter']
 const COLORS = ['Black', 'White', 'Gray', 'Beige', 'Brown', 'Red', 'Burgundy', 'Pink', 'Orange', 'Yellow', 'Green', 'Olive', 'Blue', 'Navy', 'Purple', 'Multi']
 
 const colorName = (value: unknown) => COLORS.find((name) => typeof value === 'string' && name.toLowerCase() === value.trim().toLowerCase())
-const colorsOf = (item: Record<string, unknown>) => (Array.isArray(item.colors) ? item.colors : item.color ? [item.color] : []) as unknown[]
+const colorsOf = (item: Record<string, unknown>) =>
+  (Array.isArray(item.colors) && item.colors[0] === (item.color ?? undefined) ? item.colors : item.color ? [item.color] : []) as unknown[]
 
 function token(request: Request) {
   const tok = request.headers.get('authorization')?.replace(/^Bearer /i, '') ?? ''
@@ -71,7 +72,7 @@ function checkDraft(body: Record<string, unknown>) {
     const names = Array.isArray(colors) ? colors.map(colorName) : [undefined]
     if (names.includes(undefined)) throw new FetchError(`colors must be from: ${COLORS.join(', ')}`, 400)
     draft.colors = [...new Set(names)]
-    if (names.length) draft.color = names[0]
+    draft.color = names[0] ?? null
   }
   if (body.category !== undefined) {
     if (typeof body.category !== 'string' || !CATEGORIES.includes(body.category)) {
