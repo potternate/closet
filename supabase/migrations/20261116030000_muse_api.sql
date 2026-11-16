@@ -14,7 +14,7 @@ revoke all on table public.muse_config from anon, authenticated;
 insert into public.muse_config (key, value) values
   ('token', 'replace-me-with-a-long-random-token'),
   ('user_id', '00000000-0000-0000-0000-000000000000')
-on conflict (key) do update set value = excluded.value;
+on conflict (key) do nothing;
 
 create or replace function public.muse_auth(tok text) returns uuid
 language plpgsql security definer set search_path = public as $$
@@ -37,7 +37,7 @@ language plpgsql security definer set search_path = public as $$
 declare u uuid := muse_auth(tok);
 begin
   return coalesce((
-    select jsonb_agg(d.item order by d.item->'data'->>'createdAt' desc) from (
+    select jsonb_agg(d.item order by d.item->>'createdAt' desc) from (
       select jsonb_build_object('id', id) || data as item
       from closet_items where user_id = u and not deleted
     ) d), '[]'::jsonb);

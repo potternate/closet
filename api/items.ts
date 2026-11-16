@@ -137,7 +137,8 @@ export async function POST(request: Request) {
     try {
       return Response.json({ item: await rpc('muse_create', { tok, item: data }) }, { status: 201 })
     } catch (error) {
-      if (uploaded) await deleteImage(uploaded)
+      // Only clean up on a definitive rejection — a lost response can still mean the write committed.
+      if (uploaded && error instanceof FetchError && error.status < 500) await deleteImage(uploaded)
       throw error
     }
   } catch (error) {
@@ -160,7 +161,7 @@ export async function PATCH(request: Request) {
     try {
       return Response.json({ item: await rpc('muse_update', { tok, item_id: id, patch }) })
     } catch (error) {
-      if (uploaded) await deleteImage(uploaded)
+      if (uploaded && error instanceof FetchError && error.status < 500) await deleteImage(uploaded)
       throw error
     }
   } catch (error) {
