@@ -17,6 +17,7 @@ export interface EditorSource {
 interface Props {
   source: EditorSource
   onSave: (draft: Draft, image: PreparedImage | undefined, existing?: Item) => Promise<unknown>
+  saveLabel?: string
   onCancel: () => void
 }
 
@@ -25,7 +26,7 @@ type CutState = { status: 'idle' } | { status: 'working'; progress: number } | {
 const inputClass =
   'mt-1.5 w-full rounded-xl bg-stone-50 px-3.5 py-2.5 text-base text-stone-900 ring-1 ring-stone-200 outline-none placeholder:text-stone-400 focus:ring-2 focus:ring-stone-900'
 
-export function ItemEditor({ source, onSave, onCancel }: Props) {
+export function ItemEditor({ source, onSave, onCancel, saveLabel = 'Add to closet' }: Props) {
   const [draft, setDraft] = useState<Draft>(source.draft)
   const [original, setOriginal] = useState<PreparedImage>()
   const [image, setImage] = useState<PreparedImage>()
@@ -309,7 +310,7 @@ export function ItemEditor({ source, onSave, onCancel }: Props) {
       </label>
 
       <button type="submit" disabled={!canSave} className="mt-6 w-full rounded-xl bg-stone-900 py-3.5 font-semibold text-white disabled:opacity-40">
-        {saving ? 'Saving…' : working ? 'Removing background…' : source.existing ? 'Save changes' : 'Add to closet'}
+        {saving ? 'Saving…' : working ? 'Removing background…' : source.existing ? 'Save changes' : saveLabel}
       </button>
     </form>
   )
