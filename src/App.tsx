@@ -215,7 +215,7 @@ export default function App() {
             initialIds={outfitEditor.initialIds}
             onCancel={() => setOutfitEditor(undefined)}
             onSave={(draft, existing) => {
-              const saved = closet.saveOutfit(draft, existing)
+              const saved = closet.saveOutfit({ ...draft, name: draft.name.trim() || existing?.name || `Outfit ${closet.outfits.length + 1}` }, existing)
               setOutfitEditor(undefined)
               setOpenOutfitId(saved.id)
             }}
