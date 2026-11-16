@@ -44,7 +44,7 @@ export function OutfitSheet({ outfit, items, onEdit, onDelete, onOpenItem, onTog
       {outfit.notes && <p className="mt-3 rounded-xl bg-stone-50 px-3.5 py-2.5 text-sm whitespace-pre-wrap text-stone-700">{outfit.notes}</p>}
 
       <div className="mt-5 grid grid-cols-2 gap-3">
-        <button onClick={onEdit} className="rounded-xl bg-stone-900 py-3 font-semibold text-white">
+        <button onClick={onEdit} className="rounded-xl bg-stone-900 py-3 font-semibold text-stone-50">
           Edit
         </button>
         {confirmDelete ? (

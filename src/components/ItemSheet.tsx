@@ -100,7 +100,7 @@ export function ItemSheet({ item, onSave, onDelete, onToggleWorn, onBought, onCl
       )}
 
       <div className="mt-5 grid grid-cols-2 gap-3">
-        <button onClick={() => setEditing(true)} className="rounded-xl bg-stone-900 py-3 font-semibold text-white">
+        <button onClick={() => setEditing(true)} className="rounded-xl bg-stone-900 py-3 font-semibold text-stone-50">
           Edit
         </button>
         {confirmDelete ? (
@@ -136,7 +136,7 @@ export function WearRow({ item, onToggle }: { item: Pick<Item, 'wears'>; onToggl
       <button
         onClick={() => onToggle(!wornToday)}
         aria-pressed={wornToday}
-        className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-semibold ${wornToday ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-900 text-white'}`}
+        className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-semibold ${wornToday ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-900 text-stone-50'}`}
       >
         {wornToday ? '✓ Worn today' : 'Wore today'}
       </button>

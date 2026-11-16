@@ -77,7 +77,7 @@ export function OutfitEditor({ items, existing, initialIds, onSave, onCancel }: 
             >
               <ItemImage item={item} className="absolute inset-0 h-full w-full p-1.5" />
               {active && (
-                <span className="absolute top-1 right-1 grid h-5 w-5 place-items-center rounded-full bg-stone-900 text-[11px] font-bold text-white">✓</span>
+                <span className="absolute top-1 right-1 grid h-5 w-5 place-items-center rounded-full bg-stone-900 text-[11px] font-bold text-stone-50">✓</span>
               )}
             </button>
           )
@@ -100,7 +100,7 @@ export function OutfitEditor({ items, existing, initialIds, onSave, onCancel }: 
           type="button"
           disabled={!pieces.length}
           onClick={() => onSave({ name, notes: notes.trim() || undefined, itemIds: pieces.map((item) => item.id) }, existing)}
-          className="rounded-xl bg-stone-900 py-3 font-semibold text-white disabled:opacity-40"
+          className="rounded-xl bg-stone-900 py-3 font-semibold text-stone-50 disabled:opacity-40"
         >
           Save outfit
         </button>

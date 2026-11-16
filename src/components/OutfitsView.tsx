@@ -17,14 +17,14 @@ export function OutfitsView({ outfits, byId, canShuffle, onOpen, onShuffle }: Pr
       {canShuffle && (
         <button
           onClick={onShuffle}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-white py-3 font-semibold text-stone-800 shadow-sm ring-1 ring-stone-200 active:bg-stone-50"
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-surface py-3 font-semibold text-stone-800 shadow-sm ring-1 ring-stone-200 active:bg-stone-50"
         >
           <ShuffleIcon className="h-5 w-5" /> Shuffle an outfit
         </button>
       )}
       {outfits.length === 0 ? (
         <div className="mt-16 flex flex-col items-center text-center">
-          <div className="grid h-20 w-20 place-items-center rounded-full bg-white text-stone-400 shadow-sm ring-1 ring-stone-200">
+          <div className="grid h-20 w-20 place-items-center rounded-full bg-surface text-stone-400 shadow-sm ring-1 ring-stone-200">
             <LayersIcon className="h-9 w-9" />
           </div>
           <h2 className="mt-5 text-lg font-semibold text-stone-900">No outfits yet</h2>
@@ -40,7 +40,7 @@ export function OutfitsView({ outfits, byId, canShuffle, onOpen, onShuffle }: Pr
               <button
                 key={outfit.id}
                 onClick={() => onOpen(outfit)}
-                className="overflow-hidden rounded-2xl bg-white text-left shadow-sm ring-1 ring-stone-200/70 active:scale-[0.98]"
+                className="overflow-hidden rounded-2xl bg-surface text-left shadow-sm ring-1 ring-stone-200/70 active:scale-[0.98]"
               >
                 <OutfitCollage items={pieces} className="aspect-square w-full" />
                 <div className="px-3 py-2.5">
