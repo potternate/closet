@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { sortForOutfit, type Outfit } from '../lib/outfits'
-import type { Item } from '../lib/types'
+import { formatPrice, type Item } from '../lib/types'
+import { wearCount } from '../lib/wear'
 import { ItemImage } from './ItemImage'
 import { OutfitCollage } from './OutfitCollage'
 import { WearRow } from './ItemSheet'
@@ -18,6 +19,11 @@ export function OutfitSheet({ outfit, items, onEdit, onDelete, onOpenItem, onTog
   const [confirmDelete, setConfirmDelete] = useState(false)
   const pieces = sortForOutfit(items)
   const missing = outfit.itemIds.length - pieces.length
+  const priced = pieces.filter((item) => item.price !== undefined)
+  const currencies = new Set(priced.map((item) => (item.currency ?? 'USD').toUpperCase()))
+  const total = priced.length && currencies.size === 1 ? priced.reduce((sum, item) => sum + (item.price ?? 0), 0) : undefined
+  const currency = priced[0] ? (priced[0].currency ?? 'USD').toUpperCase() : 'USD'
+  const wears = wearCount(outfit)
 
   return (
     <div>
@@ -26,6 +32,8 @@ export function OutfitSheet({ outfit, items, onEdit, onDelete, onOpenItem, onTog
       <p className="text-sm text-stone-500">
         {pieces.length} {pieces.length === 1 ? 'piece' : 'pieces'}
         {missing > 0 && ` · ${missing} deleted`}
+        {total !== undefined && ` · ${formatPrice(total, currency)}`}
+        {total !== undefined && wears > 0 && ` · ${formatPrice(total / wears, currency)}/wear`}
       </p>
 
       <div className="no-scrollbar -mx-5 mt-3 flex gap-2 overflow-x-auto px-5 pb-1">
