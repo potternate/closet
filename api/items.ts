@@ -234,10 +234,10 @@ export async function PATCH(request: Request) {
     if (cover) patch.image = uploaded[0]
     if (current) {
       // Extra shots append after the existing ones; an item with no cover gets the first one as its cover.
-      const first = patch.image ?? current.image
-      const all = [...(first ? [first] : []), ...(Array.isArray(current.photos) ? current.photos : []), ...uploaded.slice(patch.image ? 1 : 0)]
-      patch.image = all[0]
-      patch.photos = all.slice(1)
+      // Only touch `image` when it was empty, so a concurrent cover replacement isn't written back over.
+      const added = [...(Array.isArray(current.photos) ? current.photos : []), ...uploaded.slice(patch.image ? 1 : 0)]
+      if (!patch.image && !current.image) patch.image = added.shift()
+      patch.photos = added
     }
     try {
       return Response.json({ item: await rpc('muse_update', { tok, item_id: id, patch }) })
