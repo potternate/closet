@@ -75,3 +75,18 @@ export function groupItems(items: Item[], key: SortKey) {
   }
   return groups
 }
+
+export function wornDays(items: Item[]) {
+  const byDay = new Map<string, Item[]>()
+  for (const item of items) for (const day of new Set(item.wears ?? [])) byDay.set(day, [...(byDay.get(day) ?? []), item])
+  return [...byDay].sort(([a], [b]) => b.localeCompare(a)).map(([day, worn]) => ({ day, items: worn }))
+}
+
+export function dayLabel(day: string, today = dayKey()) {
+  const days = daysBetween(day, today)
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  const [year, month, date] = day.split('-').map(Number)
+  const value = new Date(year, month - 1, date)
+  return value.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', ...(year !== Number(today.slice(0, 4)) && { year: 'numeric' }) })
+}

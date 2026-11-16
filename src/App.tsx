@@ -8,13 +8,14 @@ import { Chip, Swatch } from './components/Chips'
 import { ItemImage } from './components/ItemImage'
 import { StatsView } from './components/StatsView'
 import { ItemSheet } from './components/ItemSheet'
-import { ChartIcon, HangerIcon, HeartIcon, LayersIcon, PlusIcon, SearchIcon, SlidersIcon, UserIcon } from './components/icons'
+import { CalendarIcon, ChartIcon, HangerIcon, HeartIcon, LayersIcon, PlusIcon, SearchIcon, SlidersIcon, UserIcon } from './components/icons'
 import { OutfitEditor } from './components/OutfitEditor'
 import { OutfitSheet } from './components/OutfitSheet'
 import { OutfitsView } from './components/OutfitsView'
+import { WornDaySheet, WornView } from './components/WornView'
 import { Sheet } from './components/Sheet'
 import { shuffleOutfit, type Outfit } from './lib/outfits'
-import { dayKey, groupItems, SORTS, sortItemsBy, wearCount, wornLabel, type SortKey } from './lib/wear'
+import { dayKey, groupItems, SORTS, sortItemsBy, wearCount, wornDays, wornLabel, type SortKey } from './lib/wear'
 
 export default function App() {
   const auth = useAuth()
@@ -29,8 +30,9 @@ export default function App() {
   const [openId, setOpenId] = useState<string>()
   const [showAccount, setShowAccount] = useState(false)
   const [sort, setSort] = useState<SortKey>('newest')
-  const [tab, setTab] = useState<'closet' | 'outfits' | 'wishlist' | 'stats'>(shared?.wishlist ? 'wishlist' : 'closet')
+  const [tab, setTab] = useState<'closet' | 'outfits' | 'worn' | 'wishlist' | 'stats'>(shared?.wishlist ? 'wishlist' : 'closet')
   const [openOutfitId, setOpenOutfitId] = useState<string>()
+  const [openDay, setOpenDay] = useState<string>()
   const [outfitEditor, setOutfitEditor] = useState<{ existing?: Outfit; initialIds?: string[] }>()
   const [selected, setSelected] = useState<string[]>()
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
@@ -40,6 +42,7 @@ export default function App() {
   }, [shared])
 
   const owned = useMemo(() => closet.items.filter((item) => !item.wishlist), [closet.items])
+  const days = useMemo(() => wornDays(owned), [owned])
   const wanted = useMemo(() => closet.items.filter((item) => item.wishlist), [closet.items])
   const wantedTotal = useMemo(() => {
     const priced = wanted.filter((item) => item.price !== undefined)
@@ -77,12 +80,14 @@ export default function App() {
     <div className="mx-auto min-h-dvh max-w-3xl px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-[calc(env(safe-area-inset-bottom)+10rem)]">
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-stone-900">{{ closet: 'Closet', outfits: 'Outfits', wishlist: 'Wishlist', stats: 'Stats' }[tab]}</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-stone-900">{{ closet: 'Closet', outfits: 'Outfits', worn: 'Worn', wishlist: 'Wishlist', stats: 'Stats' }[tab]}</h1>
           <p className="text-sm text-stone-500">
             {tab === 'closet' || tab === 'stats'
               ? `${owned.length} ${owned.length === 1 ? 'item' : 'items'}`
               : tab === 'outfits'
                 ? `${closet.outfits.length} ${closet.outfits.length === 1 ? 'outfit' : 'outfits'}`
+                : tab === 'worn'
+                  ? `${days.length} ${days.length === 1 ? 'day' : 'days'} logged`
                 : `${wanted.length} ${wanted.length === 1 ? 'item' : 'items'}${wantedTotal ? ` · ${wantedTotal}` : ''}`}
             {closet.syncStatus === 'error' && ' · sync paused'}
           </p>
@@ -211,6 +216,8 @@ export default function App() {
             <p className="mt-1 max-w-xs text-sm text-stone-500">Save links to things you want. Tap “Bought it” when you get one and it moves into your closet.</p>
           </div>
         )
+      ) : tab === 'worn' ? (
+        <WornView days={days} onOpen={setOpenDay} />
       ) : tab === 'outfits' ? (
         <OutfitsView
           outfits={closet.outfits}
@@ -279,7 +286,7 @@ export default function App() {
         </div>
       )}
 
-      {!(tab === 'closet' && selected?.length) && tab !== 'stats' && (tab !== 'outfits' || owned.length > 0) && (
+      {!(tab === 'closet' && selected?.length) && tab !== 'stats' && tab !== 'worn' && (tab !== 'outfits' || owned.length > 0) && (
         <button
           onClick={() => (tab === 'outfits' ? setOutfitEditor({}) : setAdding(true))}
           className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full bg-stone-900 py-3.5 pr-6 pl-5 font-semibold text-stone-50 shadow-xl shadow-stone-900/25 active:scale-95"
@@ -294,6 +301,7 @@ export default function App() {
             [
               ['closet', 'Closet', HangerIcon],
               ['outfits', 'Outfits', LayersIcon],
+              ['worn', 'Worn', CalendarIcon],
               ['wishlist', 'Wishlist', HeartIcon],
               ['stats', 'Stats', ChartIcon],
             ] as const
@@ -366,6 +374,19 @@ export default function App() {
             }}
             onOpenItem={(item) => setOpenId(item.id)}
             onToggleWorn={(worn) => closet.setWorn(openOutfit.itemIds, dayKey(), worn, openOutfit.id)}
+          />
+        </Sheet>
+      )}
+      {openDay && !outfitEditor && !openItem && (
+        <Sheet onClose={() => setOpenDay(undefined)}>
+          <WornDaySheet
+            day={openDay}
+            items={days.find(({ day }) => day === openDay)?.items ?? []}
+            onOpenItem={(item) => setOpenId(item.id)}
+            onSaveOutfit={() => {
+              setOutfitEditor({ initialIds: days.find(({ day }) => day === openDay)?.items.map((item) => item.id) })
+              setOpenDay(undefined)
+            }}
           />
         </Sheet>
       )}
