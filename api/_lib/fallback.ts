@@ -43,7 +43,7 @@ export async function microlink(url: URL): Promise<Partial<ProductInfo>> {
     const body = (await response.json()) as Microlink
     if (body.status !== 'success' || !body.data) return {}
     const { title, description, image } = body.data
-    const usefulTitle = title && !/\.(html?|php|aspx?)$/i.test(title) && !isBlockedTitle(title) ? title : undefined
+    const usefulTitle = title && !/^\S+\.(html?|php|aspx?)(\?\S*)?$/i.test(title) && !isBlockedTitle(title) ? title : undefined
     return { name: usefulTitle, description: description ?? undefined, images: image?.url ? [image.url] : [] }
   } catch {
     return {}

@@ -11,6 +11,7 @@ export const COLORS = [
   { name: 'Beige', hex: '#e7d7b8', rgb: [222, 205, 175] },
   { name: 'Brown', hex: '#8b5e3c', rgb: [120, 80, 50] },
   { name: 'Red', hex: '#dc2626', rgb: [200, 40, 40] },
+  { name: 'Burgundy', hex: '#7f1d1d', rgb: [110, 25, 35] },
   { name: 'Pink', hex: '#f9a8d4', rgb: [240, 160, 200] },
   { name: 'Orange', hex: '#f97316', rgb: [235, 120, 40] },
   { name: 'Yellow', hex: '#facc15', rgb: [240, 205, 40] },
@@ -46,10 +47,10 @@ export const emptyDraft = (): Draft => ({ name: '', category: 'Tops', seasons: [
 
 const KEYWORDS: [Category, RegExp][] = [
   ['Activewear', /\b(legging|sports? bra|running|gym|yoga|athletic|workout|track ?pant|jogger)/i],
-  ['Shoes', /\b(shoe|sneaker|boot|sandal|loafer|heel|pump|slipper|mule|clog|trainer|runner|oxford|flat)s?\b/i],
+  ['Shoes', /\b((shoe|sneaker|boot|sandal|loafer|heel|pump|slipper|mule|clog|trainer|runner|oxford|flat|slide)s?|air (force|max)|dunk (low|high)|jordan \d+|yeezy|samba|gazelle|chuck taylor|old skool)\b/i],
   ['Bags', /\b(bag|tote|backpack|purse|clutch|wallet|crossbody|satchel|duffel)s?\b/i],
   ['Dresses', /\b(dress|gown|jumpsuit|romper)(es|s)?\b/i],
-  ['Outerwear', /\b(jacket|coat|parka|blazer|vest|puffer|anorak|trench|windbreaker|fleece|gilet)s?\b/i],
+  ['Outerwear', /\b(jacket|coat|parka|blazer|vest|puffer|anorak|trench|windbreaker|fleece|gilet|shacket|overshirt)s?\b/i],
   ['Bottoms', /\b(pant|jean|short|skirt|trouser|chino|slack|cargo|sweatpant|denim)s?\b/i],
   ['Accessories', /\b(hat|cap|beanie|scarf|belt|sunglass|glasses|watch|necklace|bracelet|ring|earring|tie|glove|sock|jewelry)s?\b/i],
   ['Tops', /\b(shirt|tee|t-shirt|top|blouse|sweater|hoodie|sweatshirt|polo|tank|cardigan|pullover|crewneck|henley|jersey|knit|button[- ]down|camisole|turtleneck)s?\b/i],
@@ -63,6 +64,7 @@ export function matchColor(text: string | undefined): ColorName | undefined {
   if (!text) return undefined
   const lower = text.toLowerCase()
   const aliases: [ColorName, RegExp][] = [
+    ['Burgundy', /burgundy|maroon|wine|oxblood|bordeaux/],
     ['Navy', /navy|midnight/],
     ['Olive', /olive|khaki|army|sage/],
     ['Beige', /beige|cream|ivory|tan|sand|oat|camel|natural|ecru|bone|stone/],
