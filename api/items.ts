@@ -178,3 +178,18 @@ export async function DELETE(request: Request) {
     return errorResponse(error)
   }
 }
+
+export async function PUT(request: Request) {
+  // Log wears: PUT { ids: ["...", ...], day: "YYYY-MM-DD" } — idempotent per day.
+  try {
+    const tok = token(request)
+    const body = (await request.json()) as Record<string, unknown>
+    if (!Array.isArray(body.ids) || !body.ids.every((id) => typeof id === 'string')) {
+      throw new FetchError('ids must be an array of item ids', 400)
+    }
+    const day = typeof body.day === 'string' && body.day ? body.day : new Date().toISOString().slice(0, 10)
+    return Response.json({ worn: await rpc('muse_wear', { tok, item_ids: body.ids, day }) })
+  } catch (error) {
+    return errorResponse(error)
+  }
+}
