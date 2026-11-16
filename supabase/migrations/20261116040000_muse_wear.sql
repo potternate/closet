@@ -18,7 +18,7 @@ begin
     update closet_items
     set data = data || jsonb_build_object('wears', coalesce(data->'wears','[]'::jsonb) || to_jsonb(day), 'updatedAt', (extract(epoch from now()) * 1000)::bigint),
         updated_at = now()
-    where user_id = u and id = iid::uuid and not deleted and not (data->'wears' @> to_jsonb(day))
+    where user_id = u and id = iid::uuid and not deleted and not coalesce(data->'wears' @> to_jsonb(day), false)
     returning data into w;
     if not found then
       select data into w from closet_items where user_id = u and id = iid::uuid and not deleted;
