@@ -91,8 +91,10 @@ export function AddSheet({ onSave, onClose, initialLink }: Props) {
               <LinkIcon className="h-4 w-4" /> From a product link
             </div>
             <input
-              type="url"
+              type="text"
               inputMode="url"
+              autoCapitalize="off"
+              autoCorrect="off"
               value={link}
               onChange={(event) => setLink(event.target.value)}
               placeholder="Paste a link from any store"
