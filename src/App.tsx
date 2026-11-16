@@ -35,7 +35,7 @@ export default function App() {
   const wanted = useMemo(() => closet.items.filter((item) => item.wishlist), [closet.items])
   const wantedTotal = useMemo(() => {
     const priced = wanted.filter((item) => item.price !== undefined)
-    const currencies = new Set(priced.map((item) => item.currency ?? 'USD'))
+    const currencies = new Set(priced.map((item) => (item.currency ?? 'USD').toUpperCase()))
     if (currencies.size !== 1) return undefined
     return formatPrice(priced.reduce((sum, item) => sum + (item.price ?? 0), 0), [...currencies][0])
   }, [wanted])
