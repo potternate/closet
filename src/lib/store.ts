@@ -296,6 +296,7 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
       }
+      const current = stateRef.current
       commit({
         ...current,
         items: sortItems([item, ...current.items.filter((candidate) => candidate.id !== item.id)]),
@@ -338,7 +339,6 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
       }
-      const current = stateRef.current
       commit({
         ...current,
         outfits: {
