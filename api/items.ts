@@ -116,7 +116,10 @@ function filterItems(items: Record<string, unknown>[], params: URLSearchParams) 
   const words = loose(params.get('q')).split(/\s+/).filter(Boolean)
   const exact = (['category', 'color'] as const).map((key) => [key, text(params.get(key))] as const).filter(([, value]) => value)
   const brand = loose(params.get('brand'))
-  const wishlist = params.get('wishlist')
+  const wishlist = params.get('wishlist')?.toLowerCase()
+  if (wishlist !== undefined && wishlist !== 'true' && wishlist !== 'false') {
+    throw new FetchError('wishlist must be true or false', 400)
+  }
   return items.filter((item) => {
     if (exact.some(([key, value]) => text(item[key]) !== value)) return false
     if (brand && !loose(item.brand).includes(brand)) return false
