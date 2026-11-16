@@ -285,6 +285,7 @@ export default function App() {
           onSave={closet.saveItem}
           onDelete={closet.deleteItem}
           onToggleWorn={(worn) => closet.setWorn([openItem.id], dayKey(), worn)}
+          onLogDay={(day) => closet.setWorn([openItem.id], day, true)}
           onBought={() => closet.patchItem(openItem.id, { wishlist: false })}
         />
       )}

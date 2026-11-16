@@ -12,6 +12,7 @@ interface Props {
   onSave: (draft: Draft, image: PreparedImage | undefined, existing?: Item) => Promise<unknown>
   onDelete: (item: Item) => void
   onToggleWorn: (worn: boolean) => void
+  onLogDay?: (day: string) => void
   onBought: () => void
   onClose: () => void
 }
@@ -24,7 +25,7 @@ function hostOf(url: string) {
   }
 }
 
-export function ItemSheet({ item, onSave, onDelete, onToggleWorn, onBought, onClose }: Props) {
+export function ItemSheet({ item, onSave, onDelete, onToggleWorn, onLogDay, onBought, onClose }: Props) {
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -74,7 +75,7 @@ export function ItemSheet({ item, onSave, onDelete, onToggleWorn, onBought, onCl
           Bought it · move to closet
         </button>
       ) : (
-        <WearRow item={item} onToggle={onToggleWorn} />
+        <WearRow item={item} onToggle={onToggleWorn} onLogDay={onLogDay} />
       )}
 
       {details.length > 0 && (
@@ -123,23 +124,40 @@ export function ItemSheet({ item, onSave, onDelete, onToggleWorn, onBought, onCl
   )
 }
 
-export function WearRow({ item, onToggle }: { item: Pick<Item, 'wears'>; onToggle: (worn: boolean) => void }) {
+export function WearRow({ item, onToggle, onLogDay }: { item: Pick<Item, 'wears'>; onToggle: (worn: boolean) => void; onLogDay?: (day: string) => void }) {
   const today = dayKey()
   const wornToday = Boolean(item.wears?.includes(today))
   const count = wearCount(item)
   return (
-    <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-stone-50 py-2.5 pr-2.5 pl-3.5 ring-1 ring-stone-100">
-      <div className="min-w-0">
-        <div className="text-sm font-semibold text-stone-800">{count ? `Worn ${count === 1 ? 'once' : `${count} times`}` : 'Never worn'}</div>
-        <div className="text-xs text-stone-500">{count ? `Last ${wornLabel(item.wears, today).replace(/^Worn /, '')}` : 'Tap when you wear it'}</div>
+    <div className="mt-4 rounded-2xl bg-stone-50 py-2.5 pr-2.5 pl-3.5 ring-1 ring-stone-100">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-stone-800">{count ? `Worn ${count === 1 ? 'once' : `${count} times`}` : 'Never worn'}</div>
+          <div className="text-xs text-stone-500">{count ? `Last ${wornLabel(item.wears, today).replace(/^Worn /, '')}` : 'Tap when you wear it'}</div>
+        </div>
+        <button
+          onClick={() => onToggle(!wornToday)}
+          aria-pressed={wornToday}
+          className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-semibold ${wornToday ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-900 text-stone-50'}`}
+        >
+          {wornToday ? '✓ Worn today' : 'Wore today'}
+        </button>
       </div>
-      <button
-        onClick={() => onToggle(!wornToday)}
-        aria-pressed={wornToday}
-        className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-semibold ${wornToday ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-900 text-stone-50'}`}
-      >
-        {wornToday ? '✓ Worn today' : 'Wore today'}
-      </button>
+      {onLogDay && (
+        <label className="mt-2 flex items-center gap-2 text-xs font-medium text-stone-500">
+          Wore another day?
+          <input
+            type="date"
+            max={today}
+            aria-label="Log a past wear"
+            className="rounded-lg bg-surface px-2 py-1 text-stone-800 ring-1 ring-stone-200"
+            onChange={(event) => {
+              if (event.target.value) onLogDay(event.target.value)
+              event.target.value = ''
+            }}
+          />
+        </label>
+      )}
     </div>
   )
 }
