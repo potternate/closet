@@ -27,7 +27,7 @@ Duplicate it and add `&to=wishlist` to the end for a "Add to Wishlist" version.
 - `PATCH /api/items` — update. Body: `{ id, ...fields }`; fields replace those in the item.
 - `DELETE /api/items?id=...` — writes a tombstone so the item deletes on every synced device.
 
-Required environment variables on Vercel: `SUPABASE_SERVICE_ROLE_KEY`, `CLOSET_USER_ID`, `MUSE_TOKEN` (and `SUPABASE_URL` to override the default project). Writes go to `public.closet_items` with the service role, so RLS is untouched and the newest `updated_at` wins merges.
+Auth is `Authorization: Bearer <muse token>`; the token lives in Supabase (the `muse_config` table, checked by the `muse_*` security-definer RPCs), so no Vercel environment variables are required. Writes go to `public.closet_items` under your user id and the newest `updated_at` wins merges. `imageUrl` additionally needs `SUPABASE_SERVICE_ROLE_KEY` set on Vercel to write into the private photo bucket.
 
 ## Development
 
