@@ -123,8 +123,9 @@ function imageUrlsOf(body: Record<string, unknown>) {
   if (body.imageUrl !== undefined && typeof body.imageUrl !== 'string') throw new FetchError('imageUrl must be a string', 400)
   if (body.imageUrls !== undefined && !isStringList(body.imageUrls)) throw new FetchError('imageUrls must be a list of URLs', 400)
   const extra = ((body.imageUrls as string[] | undefined) ?? []).filter(Boolean)
-  if (extra.length > MAX_PHOTOS) throw new FetchError(`imageUrls takes at most ${MAX_PHOTOS} URLs`, 400)
-  return { cover: (body.imageUrl as string | undefined) || undefined, extra }
+  const cover = (body.imageUrl as string | undefined) || undefined
+  if (extra.length + (cover ? 1 : 0) > MAX_PHOTOS) throw new FetchError(`An item holds at most ${MAX_PHOTOS} photos`, 400)
+  return { cover, extra }
 }
 
 type Photo = { id: string; type: string; path: string }
@@ -221,17 +222,23 @@ export async function PATCH(request: Request) {
     const id = checkId(body.id)
     const patch = checkDraft(body)
     const { cover, extra } = imageUrlsOf(body)
-    let existingPhotos: unknown[] = []
+    let current: Record<string, unknown> | undefined
     if (extra.length) {
       const items = ((await rpc('muse_list', { tok })) ?? []) as Record<string, unknown>[]
-      const current = items.find((item) => item.id === id)
+      current = items.find((item) => item.id === id)
       if (!current) throw new FetchError('Item not found', 404)
-      existingPhotos = Array.isArray(current.photos) ? current.photos : []
-      if (existingPhotos.length + extra.length + 1 > MAX_PHOTOS) throw new FetchError(`An item holds at most ${MAX_PHOTOS} photos`, 400)
+      const kept = (Array.isArray(current.photos) ? current.photos.length : 0) + (cover || current.image ? 1 : 0)
+      if (kept + extra.length > MAX_PHOTOS) throw new FetchError(`An item holds at most ${MAX_PHOTOS} photos`, 400)
     }
     const uploaded = cover || extra.length ? await uploadImages(cover ? [cover, ...extra] : extra, await rpc('muse_whoami', { tok })) : []
     if (cover) patch.image = uploaded[0]
-    if (extra.length) patch.photos = [...existingPhotos, ...uploaded.slice(cover ? 1 : 0)]
+    if (current) {
+      // Extra shots append after the existing ones; an item with no cover gets the first one as its cover.
+      const first = patch.image ?? current.image
+      const all = [...(first ? [first] : []), ...(Array.isArray(current.photos) ? current.photos : []), ...uploaded.slice(patch.image ? 1 : 0)]
+      patch.image = all[0]
+      patch.photos = all.slice(1)
+    }
     try {
       return Response.json({ item: await rpc('muse_update', { tok, item_id: id, patch }) })
     } catch (error) {
