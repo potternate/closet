@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import type { PreparedImage } from '../lib/images'
-import { imageBlob } from '../lib/store'
-import { formatPrice, itemColors, type Draft, type Item } from '../lib/types'
+import { imageBlob, type PhotoInput } from '../lib/store'
+import { formatPrice, itemColors, itemPhotos, type Draft, type Item } from '../lib/types'
 import { costPerWear, dayKey, wearCount, wornLabel } from '../lib/wear'
 import { Swatch } from './Chips'
 import { ItemEditor } from './ItemEditor'
@@ -10,7 +9,7 @@ import { Sheet } from './Sheet'
 
 interface Props {
   item: Item
-  onSave: (draft: Draft, image: PreparedImage | undefined, existing?: Item) => Promise<unknown>
+  onSave: (draft: Draft, photos: PhotoInput[] | undefined, existing?: Item) => Promise<unknown>
   onDelete: (item: Item) => void
   onToggleWorn: (worn: boolean) => void
   onLogDay?: (day: string) => void
@@ -32,14 +31,14 @@ export function ItemSheet({ item, onSave, onDelete, onToggleWorn, onLogDay, onBo
   const [duplicating, setDuplicating] = useState(false)
 
   if (editing) {
-    const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, image: _image, ...draft } = item
+    const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, image: _image, photos: _photos, ...draft } = item
     return (
       <Sheet onClose={onClose}>
         <ItemEditor
           source={{ draft, existing: item }}
           onCancel={() => setEditing(false)}
-          onSave={async (next, image, existing) => {
-            await onSave(next, image, existing)
+          onSave={async (next, photos, existing) => {
+            await onSave(next, photos, existing)
             setEditing(false)
           }}
         />
@@ -57,9 +56,7 @@ export function ItemSheet({ item, onSave, onDelete, onToggleWorn, onLogDay, onBo
 
   return (
     <Sheet onClose={onClose}>
-      <div className="relative aspect-square w-full overflow-hidden rounded-3xl bg-stone-100">
-        <ItemImage item={item} className="absolute inset-0 h-full w-full p-5" />
-      </div>
+      <PhotoGallery item={item} />
       <div className="mt-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-xs font-semibold tracking-wide text-stone-400 uppercase">{item.category}</div>
@@ -112,9 +109,14 @@ export function ItemSheet({ item, onSave, onDelete, onToggleWorn, onLogDay, onBo
         onClick={async () => {
           setDuplicating(true)
           try {
-            const { id: _id, createdAt: _created, updatedAt: _updated, image: _image, wears: _wears, ...draft } = item
-            const blob = item.image ? await imageBlob(item.image) : undefined
-            await onSave(draft, blob && item.image ? { blob, type: item.image.type } : undefined)
+            const { id: _id, createdAt: _created, updatedAt: _updated, image: _image, photos: _photos, wears: _wears, ...draft } = item
+            const copies = await Promise.all(
+              itemPhotos(item).map(async (photo) => {
+                const blob = await imageBlob(photo)
+                return blob ? [{ blob, type: photo.type }] : []
+              }),
+            )
+            await onSave(draft, copies.flat())
             onClose()
           } finally {
             setDuplicating(false)
@@ -146,6 +148,37 @@ export function ItemSheet({ item, onSave, onDelete, onToggleWorn, onLogDay, onBo
         )}
       </div>
     </Sheet>
+  )
+}
+
+function PhotoGallery({ item }: { item: Item }) {
+  const photos = itemPhotos(item)
+  const [index, setIndex] = useState(0)
+  if (photos.length < 2) {
+    return (
+      <div className="relative aspect-square w-full overflow-hidden rounded-3xl bg-stone-100">
+        <ItemImage item={item} className="absolute inset-0 h-full w-full p-5" />
+      </div>
+    )
+  }
+  return (
+    <div className="relative">
+      <div
+        className="flex aspect-square w-full snap-x snap-mandatory overflow-x-auto rounded-3xl bg-stone-100 [scrollbar-width:none]"
+        onScroll={(event) => setIndex(Math.round(event.currentTarget.scrollLeft / event.currentTarget.clientWidth))}
+      >
+        {photos.map((photo) => (
+          <div key={photo.id} className="relative h-full w-full shrink-0 snap-center">
+            <ItemImage item={item} photo={photo} className="absolute inset-0 h-full w-full p-5" />
+          </div>
+        ))}
+      </div>
+      <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center gap-1.5">
+        {photos.map((photo, dot) => (
+          <span key={photo.id} className={`h-1.5 w-1.5 rounded-full ${dot === index ? 'bg-stone-800' : 'bg-stone-300'}`} />
+        ))}
+      </div>
+    </div>
   )
 }
 

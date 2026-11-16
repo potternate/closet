@@ -328,13 +328,14 @@ export default function App() {
             setAdding(false)
             setShared(undefined)
           }}
-          onSave={(draft, image) =>
-            closet.saveItem(
-              tab === 'wishlist' ? { ...draft, wishlist: true } : draft,
-              image,
-              draft.url ? closet.items.find((item) => item.url === draft.url && Boolean(item.wishlist) === (tab === 'wishlist')) : undefined,
-            )
-          }
+          onSave={(draft, photos) => {
+            const existing = draft.url
+              ? closet.items.find((item) => item.url === draft.url && Boolean(item.wishlist) === (tab === 'wishlist'))
+              : undefined
+            // Re-importing a link swaps the cover but keeps any extra shots already on the item.
+            const merged = photos?.length && existing?.photos ? [photos[0], ...existing.photos, ...photos.slice(1)] : photos
+            return closet.saveItem(tab === 'wishlist' ? { ...draft, wishlist: true } : draft, merged, existing)
+          }}
         />
       )}
       {openItem && (

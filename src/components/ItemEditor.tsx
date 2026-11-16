@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { cutOut, dominantColor, prepareImage, type PreparedImage } from '../lib/images'
 import { fetchProductImage, proxiedImage } from '../lib/productImport'
-import { CATEGORIES, itemColors, SEASONS, withColors, type Draft, type Item } from '../lib/types'
+import { imageBlob, type PhotoInput } from '../lib/store'
+import { CATEGORIES, itemColors, itemPhotos, SEASONS, withColors, type Draft, type Item, type ItemPhoto } from '../lib/types'
 import { ColorPicker, Chip } from './Chips'
 import { ItemImage } from './ItemImage'
 import { PhotosIcon, SparkleIcon } from './icons'
@@ -16,112 +17,207 @@ export interface EditorSource {
 
 interface Props {
   source: EditorSource
-  onSave: (draft: Draft, image: PreparedImage | undefined, existing?: Item) => Promise<unknown>
+  onSave: (draft: Draft, photos: PhotoInput[] | undefined, existing?: Item) => Promise<unknown>
   saveLabel?: string
   onCancel: () => void
 }
 
-type CutState = { status: 'idle' } | { status: 'working'; progress: number } | { status: 'error'; message: string }
+// One photo in the editor: either already saved on the item, or freshly prepared here.
+interface Slot {
+  key: string
+  saved?: ItemPhoto
+  image?: PreparedImage
+  original?: PreparedImage
+  url?: string
+  loading?: boolean
+}
 
 const inputClass =
   'mt-1.5 w-full rounded-xl bg-stone-50 px-3.5 py-2.5 text-base text-stone-900 ring-1 ring-stone-200 outline-none placeholder:text-stone-400 focus:ring-2 focus:ring-stone-900'
 
+const toolClass =
+  'flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-stone-100 py-2.5 text-sm font-semibold text-stone-700 active:bg-stone-200 disabled:opacity-50'
+
+const MAX_PHOTOS = 8
+
+function useBlobUrl(blob: Blob | undefined) {
+  const [url, setUrl] = useState<string>()
+  useEffect(() => {
+    if (!blob) {
+      setUrl(undefined)
+      return
+    }
+    const next = URL.createObjectURL(blob)
+    setUrl(next)
+    return () => URL.revokeObjectURL(next)
+  }, [blob])
+  return url
+}
+
+function SlotImage({ slot, item, className, dim }: { slot: Slot; item?: Item; className: string; dim?: boolean }) {
+  const url = useBlobUrl(slot.image?.blob)
+  if (slot.image) {
+    if (!url) return null
+    const cut = slot.image.type === 'image/png'
+    return (
+      <img
+        src={url}
+        alt=""
+        className={`object-contain transition ${cut ? 'drop-shadow-[0_6px_10px_rgba(0,0,0,0.12)]' : 'mix-blend-multiply'} ${dim ? 'opacity-50 blur-[1px]' : ''} ${className}`}
+      />
+    )
+  }
+  if (slot.saved && item) return <ItemImage item={item} photo={slot.saved} className={className} />
+  return null
+}
+
 export function ItemEditor({ source, onSave, onCancel, saveLabel = 'Add to closet' }: Props) {
   const [draft, setDraft] = useState<Draft>(source.draft)
-  const [original, setOriginal] = useState<PreparedImage>()
-  const [image, setImage] = useState<PreparedImage>()
-  const [preview, setPreview] = useState<string>()
-  const [loadingImage, setLoadingImage] = useState(Boolean(source.file || source.imageUrls?.length))
+  const [slots, setSlots] = useState<Slot[]>(() => {
+    if (source.file || source.imageUrls?.length) return [{ key: crypto.randomUUID(), loading: true }]
+    return source.existing ? itemPhotos(source.existing).map((saved) => ({ key: saved.id, saved })) : []
+  })
+  const [activeKey, setActiveKey] = useState(slots[0]?.key)
   const [imageError, setImageError] = useState<string>()
-  const [cut, setCut] = useState<CutState>({ status: 'idle' })
-  const [pickedUrl, setPickedUrl] = useState(source.imageUrls?.[0])
+  const [cuts, setCuts] = useState<Record<string, number>>({})
   const [saving, setSaving] = useState(false)
   const [priceText, setPriceText] = useState(source.draft.price?.toString() ?? '')
   const colorTouched = useRef(itemColors(source.draft).length > 0)
-  const replaceInput = useRef<HTMLInputElement>(null)
-  const runId = useRef(0)
+  const fileInput = useRef<HTMLInputElement>(null)
+  const fileMode = useRef<'replace' | 'add'>('add')
+  const runIds = useRef(new Map<string, number>())
+  const cutQueue = useRef<Promise<unknown>>(Promise.resolve())
+  const slotsRef = useRef(slots)
+
+  useEffect(() => {
+    slotsRef.current = slots
+  }, [slots])
 
   const update = (patch: Partial<Draft>) => setDraft((current) => ({ ...current, ...patch }))
+  const patchSlot = (key: string, patch: Partial<Slot>) =>
+    setSlots((current) => current.map((slot) => (slot.key === key ? { ...slot, ...patch } : slot)))
+  const dropSlot = (key: string) => {
+    runIds.current.delete(key)
+    const current = slotsRef.current
+    const next = current.filter((slot) => slot.key !== key)
+    const fallback = next[Math.max(0, current.findIndex((slot) => slot.key === key) - 1)]?.key
+    setSlots((all) => all.filter((slot) => slot.key !== key))
+    setActiveKey((activeKey) => (activeKey === key ? fallback : activeKey))
+  }
+  const isCover = (key: string) => slotsRef.current[0]?.key === key
 
-  useEffect(() => {
-    if (!image) {
-      setPreview(undefined)
-      return
-    }
-    const url = URL.createObjectURL(image.blob)
-    setPreview(url)
-    return () => URL.revokeObjectURL(url)
-  }, [image])
-
-  const runCutOut = async (input: PreparedImage) => {
-    const id = ++runId.current
-    setCut({ status: 'working', progress: 0 })
-    try {
-      const result = await cutOut(input.blob, (progress) => id === runId.current && setCut({ status: 'working', progress }))
-      if (id !== runId.current) return
-      setImage(result)
-      setCut({ status: 'idle' })
-      if (!colorTouched.current) {
-        const color = await dominantColor(result.blob)
-        if (!colorTouched.current && color) update(withColors([color]))
-      }
-    } catch (error) {
-      if (id !== runId.current) return
-      setCut({ status: 'error', message: error instanceof Error ? error.message : 'Couldn’t remove the background' })
-    }
+  const autoColor = async (key: string, blob: Blob) => {
+    if (colorTouched.current || !isCover(key)) return
+    const color = await dominantColor(blob)
+    if (!colorTouched.current && color) update(withColors([color]))
   }
 
-  const loadBlob = async (blob: Blob, autoCut: boolean) => {
-    runId.current++
-    setLoadingImage(true)
+  // Cut-outs run one at a time so several new photos don't load the model in parallel.
+  const runCutOut = (key: string, input: PreparedImage) => {
+    const id = (runIds.current.get(key) ?? 0) + 1
+    runIds.current.set(key, id)
+    const current = () => runIds.current.get(key) === id
+    setCuts((all) => ({ ...all, [key]: 0 }))
+    const done = () =>
+      setCuts((all) => {
+        const { [key]: _done, ...rest } = all
+        return rest
+      })
+    cutQueue.current = cutQueue.current.then(async () => {
+      if (!current()) return done()
+      try {
+        const result = await cutOut(input.blob, (progress) => current() && setCuts((all) => ({ ...all, [key]: progress })))
+        if (!current()) return
+        patchSlot(key, { image: result, saved: undefined })
+        await autoColor(key, result.blob)
+      } catch (error) {
+        if (current()) setImageError(error instanceof Error ? error.message : 'Couldn’t remove the background')
+      } finally {
+        done()
+      }
+    })
+  }
+
+  const loadBlob = async (key: string, blob: Blob, autoCut: boolean) => {
+    runIds.current.set(key, (runIds.current.get(key) ?? 0) + 1)
+    patchSlot(key, { loading: true })
     setImageError(undefined)
-    setCut({ status: 'idle' })
     try {
       const prepared = await prepareImage(blob)
-      setOriginal(prepared)
-      setImage(prepared)
-      if (!colorTouched.current) {
-        const color = await dominantColor(prepared.blob)
-        if (!colorTouched.current && color) update(withColors([color]))
-      }
-      if (autoCut) void runCutOut(prepared)
+      patchSlot(key, { image: prepared, original: prepared, saved: undefined, loading: false })
+      await autoColor(key, prepared.blob)
+      if (autoCut) runCutOut(key, prepared)
     } catch (error) {
       setImageError(error instanceof Error ? error.message : 'Couldn’t load that image')
-    } finally {
-      setLoadingImage(false)
+      dropSlot(key)
     }
   }
 
-  const loadUrl = async (url: string) => {
-    setPickedUrl(url)
-    setLoadingImage(true)
+  const loadUrl = async (key: string, url: string) => {
+    patchSlot(key, { loading: true, url })
     setImageError(undefined)
     try {
-      await loadBlob(await fetchProductImage(url), false)
+      await loadBlob(key, await fetchProductImage(url), false)
     } catch (error) {
       setImageError(error instanceof Error ? error.message : 'Couldn’t load that image')
-      setLoadingImage(false)
+      dropSlot(key)
     }
+  }
+
+  const addSlot = (patch: Partial<Slot> = {}) => {
+    const key = crypto.randomUUID()
+    setSlots((current) => [...current, { key, loading: true, ...patch }])
+    setActiveKey(key)
+    return key
   }
 
   useEffect(() => {
-    if (source.file) void loadBlob(source.file, source.autoCutOut ?? true)
-    else if (source.imageUrls?.[0]) void loadUrl(source.imageUrls[0])
+    const key = slots[0]?.key
+    if (!key) return
+    if (source.file) void loadBlob(key, source.file, source.autoCutOut ?? true)
+    else if (source.imageUrls?.[0]) void loadUrl(key, source.imageUrls[0])
     // Runs once for the initial source.
     // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const isCutOut = image?.type === 'image/png'
-  const working = cut.status === 'working'
-  const canSave = !saving && !loadingImage && !working && (Boolean(image) || Boolean(source.existing?.image) || Boolean(draft.name.trim()))
+  const active = slots.find((slot) => slot.key === activeKey)
+  const activeType = active?.image?.type ?? active?.saved?.type
+  const isCutOut = activeType === 'image/png'
+  const activeProgress = active ? cuts[active.key] : undefined
+  const working = activeProgress !== undefined
+  const busy = slots.some((slot) => slot.loading) || Object.keys(cuts).length > 0
+  const photos = slots.flatMap((slot): PhotoInput[] => (slot.image ? [slot.image] : slot.saved ? [slot.saved] : []))
+  const canSave = !saving && !busy && (photos.length > 0 || Boolean(draft.name.trim()))
+  const full = slots.length >= MAX_PHOTOS
+
+  const toggleBackground = async (slot: Slot) => {
+    if (isCutOut && slot.original) {
+      runIds.current.set(slot.key, (runIds.current.get(slot.key) ?? 0) + 1)
+      patchSlot(slot.key, { image: slot.original, saved: undefined })
+      return
+    }
+    let original = slot.original
+    if (!original && slot.saved) {
+      const blob = await imageBlob(slot.saved)
+      if (!blob) return setImageError('Couldn’t load that photo')
+      original = { blob, type: slot.saved.type }
+      patchSlot(slot.key, { original })
+    }
+    if (original) runCutOut(slot.key, original)
+  }
 
   const save = async () => {
     setSaving(true)
     try {
-      await onSave(draft, image, source.existing)
+      await onSave(draft, photos, source.existing)
     } finally {
       setSaving(false)
     }
+  }
+
+  const pickFile = (mode: 'replace' | 'add') => {
+    fileMode.current = mode
+    fileInput.current?.click()
   }
 
   return (
@@ -142,18 +238,12 @@ export function ItemEditor({ source, onSave, onCancel, saveLabel = 'Add to close
       </div>
 
       <div className="relative mt-4 grid aspect-square w-full place-items-center overflow-hidden rounded-3xl bg-stone-100">
-        {preview ? (
-          <img
-            src={preview}
-            alt=""
-            className={`absolute inset-0 h-full w-full object-contain p-4 transition ${isCutOut ? 'drop-shadow-[0_10px_16px_rgba(0,0,0,0.15)]' : 'mix-blend-multiply'} ${working ? 'opacity-50 blur-[1px]' : ''}`}
-          />
-        ) : source.existing && !loadingImage ? (
-          <ItemImage item={source.existing} className="absolute inset-0 h-full w-full p-4" />
-        ) : loadingImage ? (
+        {active?.loading ? (
           <div className="text-sm font-medium text-stone-400">Loading photo…</div>
+        ) : active ? (
+          <SlotImage slot={active} item={source.existing} dim={working} className="absolute inset-0 h-full w-full p-4" />
         ) : (
-          <button type="button" onClick={() => replaceInput.current?.click()} className="flex flex-col items-center gap-2 text-stone-400">
+          <button type="button" onClick={() => pickFile('add')} className="flex flex-col items-center gap-2 text-stone-400">
             <PhotosIcon className="h-8 w-8" />
             <span className="text-sm font-semibold">Add a photo</span>
           </button>
@@ -162,71 +252,122 @@ export function ItemEditor({ source, onSave, onCancel, saveLabel = 'Add to close
           <div className="absolute inset-x-6 bottom-6 rounded-2xl bg-surface/90 p-3 text-center shadow-lg backdrop-blur">
             <div className="text-sm font-semibold text-stone-800">Removing background…</div>
             <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-200">
-              <div
-                className="h-full rounded-full bg-stone-900 transition-all"
-                style={{ width: `${Math.max(8, Math.round(cut.progress * 100))}%` }}
-              />
+              <div className="h-full rounded-full bg-stone-900 transition-all" style={{ width: `${Math.max(8, Math.round(activeProgress * 100))}%` }} />
             </div>
-            {cut.progress < 1 && <div className="mt-1.5 text-xs text-stone-500">First time takes a bit longer</div>}
+            {activeProgress < 1 && <div className="mt-1.5 text-xs text-stone-500">First time takes a bit longer</div>}
           </div>
         )}
       </div>
 
-      {source.imageUrls && source.imageUrls.length > 1 && (
+      {slots.length > 0 && (
         <div className="-mx-5 mt-3 flex gap-2 overflow-x-auto px-5 pb-1">
-          {source.imageUrls.map((url) => (
+          {slots.map((slot, index) => (
             <button
-              key={url}
+              key={slot.key}
               type="button"
-              onClick={() => void loadUrl(url)}
-              className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-stone-100 ring-2 ${pickedUrl === url ? 'ring-stone-900' : 'ring-transparent'}`}
+              onClick={() => setActiveKey(slot.key)}
+              aria-label={index === 0 ? 'Cover photo' : `Photo ${index + 1}`}
+              className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-stone-100 ring-2 ${slot.key === activeKey ? 'ring-stone-900' : 'ring-transparent'}`}
             >
-              <img src={proxiedImage(url)} alt="" className="h-full w-full object-cover mix-blend-multiply" loading="lazy" />
+              {slot.loading ? <div className="h-full w-full animate-pulse" /> : <SlotImage slot={slot} item={source.existing} className="h-full w-full p-1" />}
+              {index === 0 && slots.length > 1 && (
+                <span className="absolute inset-x-0 bottom-0 bg-stone-900/70 text-[10px] font-semibold text-stone-50">Cover</span>
+              )}
+              {cuts[slot.key] !== undefined && <span className="absolute inset-0 animate-pulse bg-surface/50" />}
             </button>
           ))}
+          {!full && (
+            <button
+              type="button"
+              onClick={() => pickFile('add')}
+              aria-label="Add another photo"
+              className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-stone-100 text-2xl font-light text-stone-400 active:bg-stone-200"
+            >
+              +
+            </button>
+          )}
         </div>
       )}
 
+      {source.imageUrls && source.imageUrls.length > 1 && (
+        <>
+          <div className="mt-4 text-xs font-semibold text-stone-500">Product shots · tap to use, + to add another</div>
+          <div className="-mx-5 mt-2 flex gap-2 overflow-x-auto px-5 pb-1">
+            {source.imageUrls.map((url) => {
+              const used = slots.find((slot) => slot.url === url)
+              return (
+                <div key={url} className="relative shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => (used ? setActiveKey(used.key) : active ? void loadUrl(active.key, url) : void loadUrl(addSlot(), url))}
+                    className={`h-16 w-16 overflow-hidden rounded-xl bg-stone-100 ring-2 ${used ? 'ring-stone-900' : 'ring-transparent'}`}
+                  >
+                    <img src={proxiedImage(url)} alt="" className="h-full w-full object-cover mix-blend-multiply" loading="lazy" />
+                  </button>
+                  {!used && !full && (
+                    <button
+                      type="button"
+                      onClick={() => void loadUrl(addSlot({ url }), url)}
+                      aria-label="Add as another photo"
+                      className="absolute -top-1.5 -right-1.5 grid h-6 w-6 place-items-center rounded-full bg-stone-900 text-sm font-semibold text-stone-50 shadow"
+                    >
+                      +
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )}
+
       {imageError && <p className="mt-3 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600">{imageError}</p>}
-      {cut.status === 'error' && <p className="mt-3 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600">{cut.message}</p>}
 
       <div className="mt-3 flex gap-2">
-        {original && (
-          <button
-            type="button"
-            disabled={working}
-            onClick={() => {
-              if (isCutOut) {
-                runId.current++
-                setImage(original)
-              } else void runCutOut(original)
-            }}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-stone-100 py-2.5 text-sm font-semibold text-stone-700 active:bg-stone-200 disabled:opacity-50"
-          >
+        {active && !active.loading && (active.original || !isCutOut) && (
+          <button type="button" disabled={working} onClick={() => void toggleBackground(active)} className={toolClass}>
             <SparkleIcon className="h-4 w-4" />
             {isCutOut ? 'Restore background' : 'Remove background'}
           </button>
         )}
-        <button
-          type="button"
-          onClick={() => replaceInput.current?.click()}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-stone-100 py-2.5 text-sm font-semibold text-stone-700 active:bg-stone-200"
-        >
+        <button type="button" onClick={() => pickFile(active ? 'replace' : 'add')} className={toolClass}>
           <PhotosIcon className="h-4 w-4" />
-          {image || source.existing?.image ? 'Change photo' : 'Add photo'}
+          {active ? 'Replace photo' : 'Add photo'}
         </button>
         <input
-          ref={replaceInput}
+          ref={fileInput}
           type="file"
           accept="image/*"
+          multiple
           className="hidden"
           onChange={(event) => {
-            const file = event.target.files?.[0]
+            const files = [...(event.target.files ?? [])]
             event.target.value = ''
-            if (file) void loadBlob(file, true)
+            if (!files.length) return
+            if (fileMode.current === 'replace' && active) {
+              void loadBlob(active.key, files[0], true)
+              files.shift()
+            }
+            for (const file of files.slice(0, MAX_PHOTOS - slotsRef.current.length)) void loadBlob(addSlot(), file, true)
           }}
         />
       </div>
+      {active && slots.length > 1 && (
+        <div className="mt-2 flex gap-2">
+          {slots[0].key !== active.key && (
+            <button
+              type="button"
+              onClick={() => setSlots((current) => [active, ...current.filter((slot) => slot.key !== active.key)])}
+              className={toolClass}
+            >
+              Make cover
+            </button>
+          )}
+          <button type="button" disabled={working} onClick={() => dropSlot(active.key)} className={`${toolClass} text-rose-600`}>
+            Remove photo
+          </button>
+        </div>
+      )}
 
       <label className="mt-5 block text-sm font-semibold text-stone-700">
         Name
