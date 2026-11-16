@@ -41,6 +41,7 @@ export default defineConfig({
         theme_color: '#f5f5f4',
         background_color: '#f5f5f4',
         display: 'standalone',
+        share_target: { action: '/', method: 'GET', params: { title: 'title', text: 'text', url: 'url' } },
         orientation: 'portrait',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
