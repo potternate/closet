@@ -104,7 +104,7 @@ export function ItemSheet({ item, onSave, onDelete, onToggleWorn, onBought, onCl
         disabled={duplicating}
         onClick={async () => {
           setDuplicating(true)
-          const { id: _id, createdAt: _created, updatedAt: _updated, image: _image, ...draft } = item
+          const { id: _id, createdAt: _created, updatedAt: _updated, image: _image, wears: _wears, ...draft } = item
           const blob = item.image ? await loadLocalImage(item.image.id) : undefined
           await onSave(draft, blob && item.image ? { blob, type: item.image.type } : undefined)
           onClose()
