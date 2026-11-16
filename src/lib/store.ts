@@ -372,8 +372,13 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
   const setWorn = useCallback(
     (itemIds: string[], day: string, worn: boolean, outfitId?: string) => {
       const now = Date.now()
-      const ids = new Set(itemIds)
       const current = stateRef.current
+      const stillWorn = new Set(
+        worn || !outfitId
+          ? []
+          : current.outfits.records.filter((outfit) => outfit.id !== outfitId && outfit.wears?.includes(day)).flatMap((outfit) => outfit.itemIds),
+      )
+      const ids = new Set(itemIds.filter((id) => !stillWorn.has(id)))
       let dirty = current.dirty
       const items = current.items.map((item) => {
         if (!ids.has(item.id)) return item
