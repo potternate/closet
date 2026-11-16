@@ -62,3 +62,11 @@ test('guessBrand finds brands beyond the first word', async () => {
   assert.equal(guessBrand('Supreme x Nike Dunk Low'), 'Supreme')
   assert.equal(guessBrand('Random hoodie'), undefined)
 })
+
+test('matchColor does not match inside other words', async () => {
+  const { matchColor } = await import('../../src/lib/types.ts')
+  assert.equal(matchColor('Black Wool Coat'), 'Black')
+  assert.equal(matchColor('White Cotton Tank Top'), 'White')
+  assert.equal(matchColor('Camel wool coat'), 'Beige')
+  assert.equal(matchColor('Navy pants'), 'Navy')
+})

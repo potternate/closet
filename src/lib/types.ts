@@ -76,8 +76,8 @@ export function matchColor(text: string | undefined): ColorName | undefined {
     ['Brown', /brown|chocolate|coffee|mocha|cognac|rust/],
     ['Multi', /multi|print|floral|stripe|plaid|camo/],
   ]
-  for (const [name, pattern] of aliases) if (pattern.test(lower)) return name
-  return COLORS.find((color) => lower.includes(color.name.toLowerCase()))?.name
+  for (const [name, pattern] of aliases) if (new RegExp(`\\b(?:${pattern.source})\\b`).test(lower)) return name
+  return COLORS.find((color) => new RegExp(`\\b${color.name.toLowerCase()}\\b`).test(lower))?.name
 }
 
 export function formatPrice(price?: number, currency = 'USD') {
