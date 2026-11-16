@@ -35,8 +35,10 @@ async function rpc(fn: string, payload: Record<string, unknown>) {
       ? 'Unauthorized'
       : /item not found/.test(body)
         ? 'Item not found'
-        : `Supabase: ${body}`
-    const status = message === 'Unauthorized' ? 401 : message === 'Item not found' ? 404 : 502
+        : /invalid day/.test(body)
+          ? 'day must be YYYY-MM-DD and not in the future'
+          : `Supabase: ${body}`
+    const status = message === 'Unauthorized' ? 401 : message === 'Item not found' ? 404 : body.includes('invalid day') ? 400 : 502
     throw new FetchError(message, status)
   }
   return JSON.parse(body)
@@ -187,7 +189,8 @@ export async function PUT(request: Request) {
     if (!Array.isArray(body.ids) || !body.ids.every((id) => typeof id === 'string')) {
       throw new FetchError('ids must be an array of item ids', 400)
     }
-    const day = typeof body.day === 'string' && body.day ? body.day : new Date().toISOString().slice(0, 10)
+    const day = body.day === undefined ? new Date().toISOString().slice(0, 10) : body.day
+    if (typeof day !== 'string') throw new FetchError('day must be YYYY-MM-DD', 400)
     return Response.json({ worn: await rpc('muse_wear', { tok, item_ids: body.ids, day }) })
   } catch (error) {
     return errorResponse(error)
