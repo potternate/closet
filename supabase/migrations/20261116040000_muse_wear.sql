@@ -10,7 +10,7 @@ declare
   worn jsonb := '[]'::jsonb;
   w jsonb;
 begin
-  if day !~ '^\d{4}-\d{2}-\d{2}$' or day::date > current_date then
+  if day is null or day !~ '^\d{4}-\d{2}-\d{2}$' or day::date > current_date then
     raise exception 'invalid day (YYYY-MM-DD, not future)';
   end if;
   if jsonb_typeof(item_ids) <> 'array' then raise exception 'item_ids must be an array'; end if;
