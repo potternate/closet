@@ -47,3 +47,20 @@ test('sorts by wear, falling back to newest', () => {
   assert.deepEqual(ids('most-worn'), ['twice', 'once-recent', 'never-new', 'never-old'])
   assert.deepEqual(ids('recently-worn'), ['once-recent', 'twice', 'never-new', 'never-old'])
 })
+
+test('brand and color sorts group items', async () => {
+  const { groupItems } = await import('./wear.ts')
+  const items = [
+    { ...item('a', [], 3), brand: 'nike' },
+    { ...item('b', [], 2), brand: undefined },
+    { ...item('c', [], 1), brand: 'Arc’teryx' },
+    { ...item('d', [], 0), brand: 'Nike' },
+  ]
+  const groups = groupItems(sortItemsBy(items, 'brand'), 'brand')
+  assert.deepEqual(groups.map((g) => [g.label, g.items.map((i) => i.id)]), [
+    ['Arc’teryx', ['c']],
+    ['nike', ['a', 'd']],
+    ['No brand', ['b']],
+  ])
+  assert.deepEqual(groupItems(items, 'newest').map((g) => g.label), [''])
+})
