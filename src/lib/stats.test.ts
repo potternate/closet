@@ -22,6 +22,13 @@ test('closetStats tallies categories, colors and brands', () => {
   assert.deepEqual(stats.brands, [{ key: 'Nike', count: 2 }])
 })
 
+test('multi-color items count toward each color', () => {
+  const stats = closetStats([item('a', { color: 'Black', colors: ['Black', 'White'] }), item('b', { color: 'White' })], [])
+  assert.deepEqual(stats.colors, [{ key: 'White', count: 2 }, { key: 'Black', count: 1 }])
+  const legacyEdit = closetStats([item('a', { color: 'Red', colors: ['Black', 'White'] }), item('b', { colors: ['Black'] })], [])
+  assert.deepEqual(legacyEdit.colors, [{ key: 'Red', count: 1 }])
+})
+
 test('closetStats sums value in the most common currency and ranks wear', () => {
   const stats = closetStats(
     [

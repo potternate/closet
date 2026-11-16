@@ -22,8 +22,8 @@ Duplicate it and add `&to=wishlist` to the end for a "Add to Wishlist" version.
 
 `api/items.ts` exposes a token-authenticated endpoint so an agent (e.g. a "muse") can manage items in your account. Auth is `Authorization: Bearer $MUSE_TOKEN`.
 
-- `GET /api/items` — list items (`{ items: [...] }`). Optional filters: `q` (words matched against name/brand/category/color/size/notes), `category`, `color` (exact, case-insensitive), `brand` (substring), `wishlist=true|false`. Example: `/api/items?category=Shoes&color=black&wishlist=false`.
-- `POST /api/items` — create. Body: item fields (`name` required) plus optional `imageUrl` (downloaded and stored in the private photo bucket).
+- `GET /api/items` — list items (`{ items: [...] }`). Optional filters: `q` (words matched against name/brand/category/color/size/notes), `category`, `color` (matches any of the item's colors, case-insensitive), `brand` (substring), `wishlist=true|false`. Example: `/api/items?category=Shoes&color=black&wishlist=false`.
+- `POST /api/items` — create. Body: item fields (`name` required) plus optional `imageUrl` (downloaded and stored in the private photo bucket). Colors: `colors` is a list from Black, White, Gray, Beige, Brown, Red, Burgundy, Pink, Orange, Yellow, Green, Olive, Blue, Navy, Purple, Multi (first = main color); `color` alone sets a single color.
 - `PATCH /api/items` — update. Body: `{ id, ...fields }`; fields replace those in the item.
 - `DELETE /api/items?id=...` — writes a tombstone so the item deletes on every synced device.
 - `PUT /api/items` — log wears. Body: `{ "ids": ["...", ...], "day": "YYYY-MM-DD" }` (`day` optional, defaults to today; idempotent per item per day).

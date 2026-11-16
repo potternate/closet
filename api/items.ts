@@ -16,6 +16,11 @@ const BUCKET = 'closet-photos'
 
 const CATEGORIES = ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Bags', 'Accessories', 'Activewear', 'Other']
 const SEASONS = ['Spring', 'Summer', 'Fall', 'Winter']
+const COLORS = ['Black', 'White', 'Gray', 'Beige', 'Brown', 'Red', 'Burgundy', 'Pink', 'Orange', 'Yellow', 'Green', 'Olive', 'Blue', 'Navy', 'Purple', 'Multi']
+
+const colorName = (value: unknown) => COLORS.find((name) => typeof value === 'string' && name.toLowerCase() === value.trim().toLowerCase())
+const colorsOf = (item: Record<string, unknown>) =>
+  (Array.isArray(item.colors) && item.colors[0] === (item.color ?? undefined) ? item.colors : item.color ? [item.color] : []) as unknown[]
 
 function token(request: Request) {
   const tok = request.headers.get('authorization')?.replace(/^Bearer /i, '') ?? ''
@@ -55,11 +60,19 @@ function isStringList(value: unknown, allowed?: readonly string[]) {
 
 function checkDraft(body: Record<string, unknown>) {
   const draft: Record<string, unknown> = {}
-  const strings = ['name', 'color', 'brand', 'size', 'currency', 'url', 'notes'] as const
+  const strings = ['name', 'brand', 'size', 'currency', 'url', 'notes'] as const
   for (const key of strings) {
     if (body[key] === undefined) continue
     if (typeof body[key] !== 'string') throw new FetchError(`${key} must be a string`, 400)
     draft[key] = body[key]
+  }
+  // `colors` is the full list (first = primary); `color` alone sets a single color.
+  const colors = body.colors !== undefined ? body.colors : body.color !== undefined ? [body.color] : undefined
+  if (colors !== undefined) {
+    const names = Array.isArray(colors) ? colors.map(colorName) : [undefined]
+    if (names.includes(undefined)) throw new FetchError(`colors must be from: ${COLORS.join(', ')}`, 400)
+    draft.colors = [...new Set(names)]
+    draft.color = names[0] ?? null
   }
   if (body.category !== undefined) {
     if (typeof body.category !== 'string' || !CATEGORIES.includes(body.category)) {
@@ -115,18 +128,20 @@ function filterItems(items: Record<string, unknown>[], params: URLSearchParams) 
   const loose = (value: unknown) => text(value).replace(/['’`.]/g, '')
   const term = (value: string) => loose(value) || value
   const words = text(params.get('q')).split(/\s+/).filter(Boolean).map(term)
-  const exact = (['category', 'color'] as const).map((key) => [key, text(params.get(key))] as const).filter(([, value]) => value)
+  const category = text(params.get('category'))
+  const color = text(params.get('color'))
   const brand = term(text(params.get('brand')))
   const wishlist = params.get('wishlist')?.toLowerCase()
   if (wishlist !== undefined && wishlist !== 'true' && wishlist !== 'false') {
     throw new FetchError('wishlist must be true or false', 400)
   }
   return items.filter((item) => {
-    if (exact.some(([key, value]) => text(item[key]) !== value)) return false
+    if (category && text(item.category) !== category) return false
+    if (color && !colorsOf(item).some((name) => text(name) === color)) return false
     if (brand && !loose(item.brand).includes(brand)) return false
     if (wishlist === 'true' && item.wishlist !== true) return false
     if (wishlist === 'false' && item.wishlist === true) return false
-    const haystack = ['name', 'brand', 'category', 'color', 'size', 'notes'].map((key) => loose(item[key])).join(' ')
+    const haystack = [...['name', 'brand', 'category', 'size', 'notes'].map((key) => item[key]), ...colorsOf(item)].map(loose).join(' ')
     return words.every((word) => haystack.includes(word))
   })
 }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from './lib/auth'
 import { useCloset } from './lib/store'
-import { CATEGORIES, COLORS, formatPrice, SEASONS, type Category, type ColorName, type Item, type Season } from './lib/types'
+import { CATEGORIES, COLORS, formatPrice, itemColors, SEASONS, type Category, type ColorName, type Item, type Season } from './lib/types'
 import { AccountSheet } from './components/AccountSheet'
 import { AddSheet } from './components/AddSheet'
 import { Chip, Swatch } from './components/Chips'
@@ -61,16 +61,16 @@ export default function App() {
     const words = query.toLowerCase().split(/\s+/).filter(Boolean)
     const matches = owned.filter((item) => {
       if (category !== 'All' && item.category !== category) return false
-      if (color && item.color !== color) return false
+      if (color && !itemColors(item).includes(color)) return false
       if (season && !item.seasons.includes(season)) return false
-      const haystack = [item.name, item.brand, item.category, item.color, item.notes, item.size].join(' ').toLowerCase()
+      const haystack = [item.name, item.brand, item.category, ...itemColors(item), item.notes, item.size].join(' ').toLowerCase()
       return words.every((word) => haystack.includes(word))
     })
     return sortItemsBy(matches, sort)
   }, [category, owned, color, query, season, sort])
 
   const openItem = closet.items.find((item) => item.id === openId)
-  const usedColors = COLORS.filter((candidate) => owned.some((item) => item.color === candidate.name))
+  const usedColors = COLORS.filter((candidate) => owned.some((item) => itemColors(item).includes(candidate.name)))
   const filtersActive = Boolean(color || season) || sort !== 'newest'
 
   const byId = new Map(closet.items.map((item) => [item.id, item]))
