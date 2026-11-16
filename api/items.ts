@@ -97,7 +97,14 @@ async function uploadImage(imageId: string, rawUrl: string, userId: string) {
     body,
   })
   if (!response.ok) throw new FetchError(`Photo upload: ${await response.text()}`, 502)
-  return { id: imageId, type, path }
+  return { id: imageId, type, path, storagePath: path }
+}
+
+async function deleteImage(storagePath: string) {
+  await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${storagePath}`, {
+    method: 'DELETE',
+    headers: { apikey: SERVICE_KEY, authorization: `Bearer ${SERVICE_KEY}` },
+  }).catch(() => undefined)
 }
 
 export async function GET(request: Request) {
@@ -119,12 +126,20 @@ export async function POST(request: Request) {
     draft.seasons ??= []
     const id = crypto.randomUUID()
     const now = Date.now()
+    let uploaded: string | undefined
     let image: Record<string, unknown> | undefined
     if (typeof body.imageUrl === 'string' && body.imageUrl) {
-      image = await uploadImage(crypto.randomUUID(), body.imageUrl, await rpc('muse_whoami', { tok }))
+      const uploaded_image = await uploadImage(crypto.randomUUID(), body.imageUrl, await rpc('muse_whoami', { tok }))
+      image = { id: uploaded_image.id, type: uploaded_image.type, path: uploaded_image.path }
+      uploaded = uploaded_image.storagePath
     }
     const data = { ...draft, id, image, createdAt: now, updatedAt: now }
-    return Response.json({ item: await rpc('muse_create', { tok, item: data }) }, { status: 201 })
+    try {
+      return Response.json({ item: await rpc('muse_create', { tok, item: data }) }, { status: 201 })
+    } catch (error) {
+      if (uploaded) await deleteImage(uploaded)
+      throw error
+    }
   } catch (error) {
     return errorResponse(error)
   }
@@ -136,10 +151,18 @@ export async function PATCH(request: Request) {
     const body = (await request.json()) as Record<string, unknown>
     const id = checkId(body.id)
     const patch = checkDraft(body)
+    let uploaded: string | undefined
     if (typeof body.imageUrl === 'string' && body.imageUrl) {
-      patch.image = await uploadImage(crypto.randomUUID(), body.imageUrl, await rpc('muse_whoami', { tok }))
+      const image = await uploadImage(crypto.randomUUID(), body.imageUrl, await rpc('muse_whoami', { tok }))
+      patch.image = { id: image.id, type: image.type, path: image.path }
+      uploaded = image.storagePath
     }
-    return Response.json({ item: await rpc('muse_update', { tok, item_id: id, patch }) })
+    try {
+      return Response.json({ item: await rpc('muse_update', { tok, item_id: id, patch }) })
+    } catch (error) {
+      if (uploaded) await deleteImage(uploaded)
+      throw error
+    }
   } catch (error) {
     return errorResponse(error)
   }
