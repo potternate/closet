@@ -74,10 +74,10 @@ export function matchColor(text: string | undefined): ColorName | undefined {
     ['Pink', /pink|rose|blush|magenta|fuchsia/],
     ['Purple', /purple|violet|lilac|lavender|plum/],
     ['Brown', /brown|chocolate|coffee|mocha|cognac|rust/],
-    ['Multi', /multi|print|floral|stripe|plaid|camo/],
+    ['Multi', /multi|multicolou?r|prints?|printed|florals?|stripes?|striped|plaid|checked|camo|camouflage|tie[- ]dye|patterned|graphic/],
   ]
-  for (const [name, pattern] of aliases) if (pattern.test(lower)) return name
-  return COLORS.find((color) => lower.includes(color.name.toLowerCase()))?.name
+  for (const [name, pattern] of aliases) if (new RegExp(`\\b(?:${pattern.source})\\b`).test(lower)) return name
+  return COLORS.find((color) => new RegExp(`\\b${color.name.toLowerCase()}\\b`).test(lower))?.name
 }
 
 export function formatPrice(price?: number, currency = 'USD') {
@@ -101,5 +101,11 @@ const BRANDS = [
 export function guessBrand(name: string | undefined) {
   if (!name) return undefined
   const lower = name.toLowerCase()
-  return [...BRANDS].sort((a, b) => b.length - a.length).find((brand) => lower.startsWith(`${brand.toLowerCase()} `))
+  const brands = [...BRANDS].sort((a, b) => b.length - a.length)
+  const prefix = brands.find((brand) => lower.startsWith(`${brand.toLowerCase()} `))
+  if (prefix) return prefix
+  return brands.find((brand) => {
+    const index = lower.indexOf(` ${brand.toLowerCase()} `)
+    return index > 0 || lower.endsWith(` ${brand.toLowerCase()}`)
+  })
 }
