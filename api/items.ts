@@ -112,16 +112,17 @@ async function deleteImage(storagePath: string) {
 // GET filters: ?q=words&category=Shoes&color=Black&brand=nike&wishlist=true|false
 function filterItems(items: Record<string, unknown>[], params: URLSearchParams) {
   const text = (value: unknown) => (typeof value === 'string' ? value.toLowerCase() : '')
-  const words = text(params.get('q')).split(/\s+/).filter(Boolean)
+  const loose = (value: unknown) => text(value).replace(/[^\p{L}\p{N}\s]/gu, '')
+  const words = loose(params.get('q')).split(/\s+/).filter(Boolean)
   const exact = (['category', 'color'] as const).map((key) => [key, text(params.get(key))] as const).filter(([, value]) => value)
-  const brand = text(params.get('brand'))
+  const brand = loose(params.get('brand'))
   const wishlist = params.get('wishlist')
   return items.filter((item) => {
     if (exact.some(([key, value]) => text(item[key]) !== value)) return false
-    if (brand && !text(item.brand).includes(brand)) return false
+    if (brand && !loose(item.brand).includes(brand)) return false
     if (wishlist === 'true' && item.wishlist !== true) return false
     if (wishlist === 'false' && item.wishlist === true) return false
-    const haystack = ['name', 'brand', 'category', 'color', 'size', 'notes'].map((key) => text(item[key])).join(' ')
+    const haystack = ['name', 'brand', 'category', 'color', 'size', 'notes'].map((key) => loose(item[key])).join(' ')
     return words.every((word) => haystack.includes(word))
   })
 }
