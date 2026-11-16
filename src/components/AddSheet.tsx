@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react'
-import { importProduct } from '../lib/productImport'
+import { extractLinks } from '../lib/links'
+import { fetchProductImage, importProduct, type ProductInfo } from '../lib/productImport'
 import { emptyDraft, guessBrand, guessCategory, matchColor, type Draft } from '../lib/types'
-import type { PreparedImage } from '../lib/images'
+import { prepareImage, type PreparedImage } from '../lib/images'
 import { ItemEditor, type EditorSource } from './ItemEditor'
 import { Sheet } from './Sheet'
 import { CameraIcon, LinkIcon, PhotosIcon } from './icons'
@@ -13,32 +14,51 @@ interface Props {
   title?: string
 }
 
+const productDraft = (product: ProductInfo): Draft => {
+  const text = [product.name, product.description].filter(Boolean).join(' ')
+  return {
+    ...emptyDraft(),
+    name: product.name ?? '',
+    brand: product.brand ?? guessBrand(product.name),
+    price: product.price,
+    currency: product.currency,
+    color: matchColor(product.color),
+    category: guessCategory(product.name ?? '') ?? guessCategory(text) ?? 'Other',
+    url: product.url,
+  }
+}
+
+async function firstImage(urls: string[]) {
+  for (const url of urls.slice(0, 3)) {
+    try {
+      return await prepareImage(await fetchProductImage(url))
+    } catch {
+      // try the next image
+    }
+  }
+  return undefined
+}
+
 export function AddSheet({ onSave, onClose, initialLink, title = 'Add to closet' }: Props) {
   const [link, setLink] = useState(initialLink ?? '')
   const [importing, setImporting] = useState(false)
   const [error, setError] = useState<string>()
   const [source, setSource] = useState<EditorSource>()
+  const [bulk, setBulk] = useState<{ done: number; total: number; failed: string[] }>()
+  const links = extractLinks(link)
   const cameraInput = useRef<HTMLInputElement>(null)
   const libraryInput = useRef<HTMLInputElement>(null)
 
   const runImport = async (value = link) => {
     if (!value.trim()) return
+    const found = extractLinks(value)
+    if (found.length > 1) return runBulk(found)
     setImporting(true)
     setError(undefined)
     try {
       const product = await importProduct(value.trim())
-      const text = [product.name, product.description].filter(Boolean).join(' ')
       setSource({
-        draft: {
-          ...emptyDraft(),
-          name: product.name ?? '',
-          brand: product.brand ?? guessBrand(product.name),
-          price: product.price,
-          currency: product.currency,
-          color: matchColor(product.color),
-          category: guessCategory(product.name ?? '') ?? guessCategory(text) ?? 'Other',
-          url: product.url,
-        },
+        draft: productDraft(product),
         imageUrls: product.images,
         autoCutOut: false,
       })
@@ -47,6 +67,25 @@ export function AddSheet({ onSave, onClose, initialLink, title = 'Add to closet'
     } finally {
       setImporting(false)
     }
+  }
+
+  const runBulk = async (found: string[]) => {
+    setImporting(true)
+    setError(undefined)
+    const failed: string[] = []
+    setBulk({ done: 0, total: found.length, failed })
+    for (const [index, url] of found.entries()) {
+      try {
+        const product = await importProduct(url)
+        await onSave(productDraft(product), await firstImage(product.images))
+      } catch {
+        failed.push(url)
+      }
+      setBulk({ done: index + 1, total: found.length, failed: [...failed] })
+    }
+    setImporting(false)
+    if (failed.length) setLink(failed.join('\n'))
+    else onClose()
   }
 
   const pasteAndImport = async () => {
@@ -91,15 +130,21 @@ export function AddSheet({ onSave, onClose, initialLink, title = 'Add to closet'
             <div className="flex items-center gap-2 text-sm font-semibold text-stone-800">
               <LinkIcon className="h-4 w-4" /> From a product link
             </div>
-            <input
-              type="text"
+            <textarea
               inputMode="url"
               autoCapitalize="off"
               autoCorrect="off"
+              rows={links.length > 1 ? 4 : 1}
               value={link}
               onChange={(event) => setLink(event.target.value)}
-              placeholder="Paste a link from any store"
-              className="mt-3 w-full rounded-xl bg-surface px-3.5 py-3 text-base text-stone-900 ring-1 ring-stone-200 outline-none placeholder:text-stone-400 focus:ring-2 focus:ring-stone-900"
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.shiftKey && links.length <= 1) {
+                  event.preventDefault()
+                  void runImport()
+                }
+              }}
+              placeholder="Paste a link from any store, or several at once"
+              className="mt-3 w-full resize-none rounded-xl bg-surface px-3.5 py-3 text-base text-stone-900 ring-1 ring-stone-200 outline-none placeholder:text-stone-400 focus:ring-2 focus:ring-stone-900"
             />
             <div className="mt-3 flex gap-2">
               {'clipboard' in navigator && 'readText' in navigator.clipboard && (
@@ -117,9 +162,20 @@ export function AddSheet({ onSave, onClose, initialLink, title = 'Add to closet'
                 disabled={importing || !link.trim()}
                 className="flex-[2] rounded-xl bg-stone-900 py-3 text-sm font-semibold text-stone-50 disabled:opacity-40"
               >
-                {importing ? 'Reading product…' : 'Import'}
+                {bulk && importing
+                  ? `Adding ${bulk.done + 1} of ${bulk.total}…`
+                  : importing
+                    ? 'Reading product…'
+                    : links.length > 1
+                      ? `Import ${links.length} links`
+                      : 'Import'}
               </button>
             </div>
+            {bulk && !importing && bulk.failed.length > 0 && (
+              <p className="mt-3 rounded-xl bg-rose-50 px-3.5 py-2.5 text-sm text-rose-600">
+                Added {bulk.total - bulk.failed.length} of {bulk.total}. The {bulk.failed.length === 1 ? 'link left in the box' : `${bulk.failed.length} links left in the box`} couldn’t be read.
+              </p>
+            )}
             {error && (
               <p className="mt-3 rounded-xl bg-rose-50 px-3.5 py-2.5 text-sm text-rose-600">
                 {error}. You can also screenshot the product and add it as a photo.
