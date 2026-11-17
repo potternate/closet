@@ -174,7 +174,7 @@ const storedPhotos = (item: Record<string, unknown>) =>
 
 async function findItem(tok: string, id: string) {
   const items = ((await rpc('muse_list', { tok })) ?? []) as Record<string, unknown>[]
-  return items.find((item) => item.id === id)
+  return items.find((item) => typeof item.id === 'string' && item.id.toLowerCase() === id.toLowerCase())
 }
 
 async function deleteImage(storagePath: string) {
