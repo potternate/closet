@@ -57,6 +57,9 @@ function checkId(id: unknown): string {
   return id
 }
 
+const isDay = (value: unknown) =>
+  typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && new Date(`${value}T00:00:00Z`).getUTCDate() === Number(value.slice(8))
+
 function isStringList(value: unknown, allowed?: readonly string[]) {
   return Array.isArray(value) && value.every((entry) => typeof entry === 'string' && (!allowed || allowed.includes(entry)))
 }
@@ -98,7 +101,7 @@ function checkDraft(body: Record<string, unknown>) {
   // `archived: true` archives as of today, a YYYY-MM-DD date archives as of that day, false/null restores.
   if (body.archived !== undefined) {
     const day = body.archived === true ? new Date().toISOString().slice(0, 10) : body.archived
-    if (day !== false && day !== null && !(typeof day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(day))) {
+    if (day !== false && day !== null && !isDay(day)) {
       throw new FetchError('archived must be true, false, null or YYYY-MM-DD', 400)
     }
     draft.archived = day || null
