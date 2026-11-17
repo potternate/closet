@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { colorNames, itemColors, rankSimilar, sizesIn } from './similar.ts'
+import { guessCategory } from './category.ts'
 
 const closet = [
   { id: 'af1', name: 'Nike Air Force 1 Skeleton', brand: 'Nike', category: 'Shoes', colors: ['White'], url: 'https://www.nike.com/t/af1-skeleton/abc' },
@@ -56,3 +57,8 @@ test('variant query params keep links apart, tracking params do not', () => {
   assert.equal(rankSimilar({ name: 'Wool Runner', url: 'https://www.shop.example.com/products/wool-runner/?variant=1' }, shop)[0]?.match, 'duplicate')
 })
 
+
+test('a running shoe is guessed as Shoes, running shorts as Activewear', () => {
+  assert.equal(guessCategory('Nike Pegasus 41 Running Shoe'), 'Shoes')
+  assert.equal(guessCategory('Running Shorts'), 'Activewear')
+})
