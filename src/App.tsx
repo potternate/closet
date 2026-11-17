@@ -456,10 +456,19 @@ function wearDetail(item: Item) {
 
 function ItemCard({ item, detail, selected, onOpen }: { item: Item; detail?: string; selected?: boolean; onOpen: () => void }) {
   return (
-    <button
+    // A div, not a <button>: iOS Safari won't swipe-scroll the photo strip inside a button.
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onOpen()
+        }
+      }}
       aria-pressed={selected}
-      className={`group overflow-hidden rounded-2xl bg-surface text-left shadow-sm ring-1 active:scale-[0.98] ${selected ? 'ring-2 ring-stone-900' : 'ring-stone-200/70'}`}
+      className={`group cursor-pointer overflow-hidden rounded-2xl bg-surface text-left shadow-sm ring-1 active:scale-[0.98] ${selected ? 'ring-2 ring-stone-900' : 'ring-stone-200/70'}`}
     >
       <div className="relative aspect-[4/5] bg-stone-100/70">
         <PhotoSwiper item={item} className="h-full w-full" imageClassName="p-3" small />
@@ -471,7 +480,7 @@ function ItemCard({ item, detail, selected, onOpen }: { item: Item; detail?: str
         <div className="truncate text-sm font-semibold text-stone-900">{item.name}</div>
         <div className="truncate text-xs text-stone-500">{detail ?? item.brand ?? item.category}</div>
       </div>
-    </button>
+    </div>
   )
 }
 
