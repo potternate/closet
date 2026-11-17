@@ -1,4 +1,5 @@
 import { errorResponse, FetchError, fetchPublic, parseUrl } from './_lib/fetchSafe.js'
+import { BUCKET, rpc, SERVICE_KEY, SUPABASE_URL } from './_lib/supabase.js'
 
 // Agent-facing item API. Auth: `Authorization: Bearer <muse token>` — the token
 // lives in Supabase (`muse_config`) and is checked by the muse_* RPC functions,
@@ -9,12 +10,7 @@ import { errorResponse, FetchError, fetchPublic, parseUrl } from './_lib/fetchSa
 // PATCH  /api/items           -> update. Body: { id, ...fields } merged into the item. `imageUrl` replaces the
 //                                 cover; `imageUrls` appends extra shots.
 // DELETE /api/items?id=...    -> tombstone so the item deletes on every synced device.
-// Image upload additionally needs SUPABASE_SERVICE_ROLE_KEY set on Vercel.
-
-const SUPABASE_URL = process.env.SUPABASE_URL ?? 'https://ilrpvkxagutjmbmesqkd.supabase.co'
-const ANON_KEY = process.env.SUPABASE_ANON_KEY ?? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlscnB2a3hhZ3V0am1ibWVzcWtkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ3MDk4NjcsImV4cCI6MjExMDI4NTg2N30.NNN4Z-I10WScI5T-Eg2CXRWedxt5PyPNllmB0i_iYI8'
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
-const BUCKET = 'closet-photos'
+// Image upload additionally needs SUPABASE_SERVICE_ROLE_KEY set on Vercel. Deletes also remove the item's stored photos.
 
 const CATEGORIES = ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Bags', 'Accessories', 'Activewear', 'Other']
 const SEASONS = ['Spring', 'Summer', 'Fall', 'Winter']
@@ -33,27 +29,6 @@ function token(request: Request) {
   const tok = request.headers.get('authorization')?.replace(/^Bearer /i, '') ?? ''
   if (!tok) throw new FetchError('Missing Authorization: Bearer <token>', 401)
   return tok
-}
-
-async function rpc(fn: string, payload: Record<string, unknown>) {
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
-    method: 'POST',
-    headers: { apikey: ANON_KEY, authorization: `Bearer ${ANON_KEY}`, 'content-type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-  const body = await response.text()
-  if (!response.ok) {
-    const message = /unauthorized/.test(body)
-      ? 'Unauthorized'
-      : /item not found/.test(body)
-        ? 'Item not found'
-        : /invalid day/.test(body)
-          ? 'day must be YYYY-MM-DD and not in the future'
-          : `Supabase: ${body}`
-    const status = message === 'Unauthorized' ? 401 : message === 'Item not found' ? 404 : body.includes('invalid day') ? 400 : 502
-    throw new FetchError(message, status)
-  }
-  return JSON.parse(body)
 }
 
 function checkId(id: unknown): string {
@@ -188,7 +163,16 @@ async function uploadImages(urls: string[], userId: string) {
 }
 
 async function deleteImages(photos: Photo[]) {
-  await Promise.all(photos.map((photo) => deleteImage(photo.path)))
+  if (!SERVICE_KEY) return
+  await Promise.all(photos.filter((photo) => photo?.path).map((photo) => deleteImage(photo.path)))
+}
+
+const storedPhotos = (item: Record<string, unknown>) =>
+  [item.image, ...(Array.isArray(item.photos) ? item.photos : [])].filter((photo): photo is Photo => Boolean((photo as Photo | undefined)?.path))
+
+async function findItem(tok: string, id: string) {
+  const items = ((await rpc('muse_list', { tok })) ?? []) as Record<string, unknown>[]
+  return items.find((item) => item.id === id)
 }
 
 async function deleteImage(storagePath: string) {
@@ -271,29 +255,32 @@ export async function PATCH(request: Request) {
     const id = checkId(body.id)
     const patch = checkDraft(body)
     const { cover, extra } = imageUrlsOf(body)
-    let current: Record<string, unknown> | undefined
-    if (extra.length) {
-      const items = ((await rpc('muse_list', { tok })) ?? []) as Record<string, unknown>[]
-      current = items.find((item) => item.id === id)
-      if (!current) throw new FetchError('Item not found', 404)
+    const current = cover || extra.length ? await findItem(tok, id) : undefined
+    if ((cover || extra.length) && !current) throw new FetchError('Item not found', 404)
+    if (current && extra.length) {
       const kept = (Array.isArray(current.photos) ? current.photos.length : 0) + (cover || current.image ? 1 : 0)
       if (kept + extra.length > MAX_PHOTOS) throw new FetchError(`An item holds at most ${MAX_PHOTOS} photos`, 400)
     }
     const uploaded = cover || extra.length ? await uploadImages(cover ? [cover, ...extra] : extra, await rpc('muse_whoami', { tok })) : []
     if (cover) patch.image = uploaded[0]
-    if (current) {
+    if (current && extra.length) {
       // Extra shots append after the existing ones; an item with no cover gets the first one as its cover.
       // Only touch `image` when it was empty, so a concurrent cover replacement isn't written back over.
       const added = [...(Array.isArray(current.photos) ? current.photos : []), ...uploaded.slice(patch.image ? 1 : 0)]
       if (!patch.image && !current.image) patch.image = added.shift()
       patch.photos = added
     }
+    let item: Record<string, unknown>
     try {
-      return Response.json({ item: await rpc('muse_update', { tok, item_id: id, patch }) })
+      item = await rpc('muse_update', { tok, item_id: id, patch })
     } catch (error) {
       if (error instanceof FetchError && error.status < 500) await deleteImages(uploaded)
       throw error
     }
+    // A replaced cover is no longer referenced anywhere, so its file goes too.
+    const oldCover = cover && current ? storedPhotos({ image: current.image })[0] : undefined
+    if (oldCover && !storedPhotos(item).some((photo) => photo.path === oldCover.path)) await deleteImages([oldCover])
+    return Response.json({ item })
   } catch (error) {
     return errorResponse(error)
   }
@@ -303,7 +290,10 @@ export async function DELETE(request: Request) {
   try {
     const tok = token(request)
     const id = checkId(new URL(request.url).searchParams.get('id'))
-    return Response.json(await rpc('muse_delete', { tok, item_id: id }))
+    const current = await findItem(tok, id)
+    const deleted = await rpc('muse_delete', { tok, item_id: id })
+    if (current) await deleteImages(storedPhotos(current))
+    return Response.json(deleted)
   } catch (error) {
     return errorResponse(error)
   }
