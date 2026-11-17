@@ -150,15 +150,17 @@ async function uploadImages(urls: string[], userId: string) {
       photos.push(photo)
     }
   } catch (error) {
-    await deleteImages(photos)
+    await deleteImages(photos, userId)
     throw error
   }
   return photos
 }
 
-async function deleteImages(photos: Photo[]) {
+// Only files under the caller's own folder are deleted, whatever path an item claims to hold.
+async function deleteImages(photos: Photo[], userId: string) {
   if (!SERVICE_KEY) return
-  await Promise.all(photos.filter((photo) => photo?.path).map((photo) => deleteImage(photo.path)))
+  const own = (path: string) => path.startsWith(`${userId}/`) && !path.includes('..')
+  await Promise.all(photos.filter((photo) => photo?.path && own(photo.path)).map((photo) => deleteImage(photo.path)))
 }
 
 const storedPhotos = (item: Record<string, unknown>) =>
@@ -166,7 +168,7 @@ const storedPhotos = (item: Record<string, unknown>) =>
 
 async function findItem(tok: string, id: string) {
   const items = ((await rpc('muse_list', { tok })) ?? []) as Record<string, unknown>[]
-  return items.find((item) => item.id === id)
+  return items.find((item) => typeof item.id === 'string' && item.id.toLowerCase() === id.toLowerCase())
 }
 
 async function deleteImage(storagePath: string) {
@@ -228,13 +230,14 @@ export async function POST(request: Request) {
     const now = Date.now()
     const { cover, extra } = imageUrlsOf(body)
     const urls = cover ? [cover, ...extra] : extra
-    const uploaded = urls.length ? await uploadImages(urls, await rpc('muse_whoami', { tok })) : []
+    const userId = urls.length ? ((await rpc('muse_whoami', { tok })) as string) : ''
+    const uploaded = userId ? await uploadImages(urls, userId) : []
     const data = { ...draft, id, image: uploaded[0], photos: uploaded.length > 1 ? uploaded.slice(1) : undefined, createdAt: now, updatedAt: now }
     try {
       return Response.json({ item: await rpc('muse_create', { tok, item: data }) }, { status: 201 })
     } catch (error) {
       // Only clean up on a definitive rejection — a lost response can still mean the write committed.
-      if (error instanceof FetchError && error.status < 500) await deleteImages(uploaded)
+      if (error instanceof FetchError && error.status < 500) await deleteImages(uploaded, userId)
       throw error
     }
   } catch (error) {
@@ -255,7 +258,8 @@ export async function PATCH(request: Request) {
       const kept = (Array.isArray(current.photos) ? current.photos.length : 0) + (cover || current.image ? 1 : 0)
       if (kept + extra.length > MAX_PHOTOS) throw new FetchError(`An item holds at most ${MAX_PHOTOS} photos`, 400)
     }
-    const uploaded = cover || extra.length ? await uploadImages(cover ? [cover, ...extra] : extra, await rpc('muse_whoami', { tok })) : []
+    const userId = cover || extra.length ? ((await rpc('muse_whoami', { tok })) as string) : ''
+    const uploaded = userId ? await uploadImages(cover ? [cover, ...extra] : extra, userId) : []
     if (cover) patch.image = uploaded[0]
     if (current && extra.length) {
       // Extra shots append after the existing ones; an item with no cover gets the first one as its cover.
@@ -268,12 +272,12 @@ export async function PATCH(request: Request) {
     try {
       item = await rpc('muse_update', { tok, item_id: id, patch })
     } catch (error) {
-      if (error instanceof FetchError && error.status < 500) await deleteImages(uploaded)
+      if (error instanceof FetchError && error.status < 500) await deleteImages(uploaded, userId)
       throw error
     }
     // A replaced cover is no longer referenced anywhere, so its file goes too.
     const oldCover = cover && current ? storedPhotos({ image: current.image })[0] : undefined
-    if (oldCover && !storedPhotos(item).some((photo) => photo.path === oldCover.path)) await deleteImages([oldCover])
+    if (oldCover && !storedPhotos(item).some((photo) => photo.path === oldCover.path)) await deleteImages([oldCover], userId)
     return Response.json({ item })
   } catch (error) {
     return errorResponse(error)
@@ -286,7 +290,7 @@ export async function DELETE(request: Request) {
     const id = checkId(new URL(request.url).searchParams.get('id'))
     const current = await findItem(tok, id)
     const deleted = await rpc('muse_delete', { tok, item_id: id })
-    if (current) await deleteImages(storedPhotos(current))
+    if (current) await deleteImages(storedPhotos(current), await rpc('muse_whoami', { tok }))
     return Response.json(deleted)
   } catch (error) {
     return errorResponse(error)
