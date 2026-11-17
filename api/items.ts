@@ -1,5 +1,5 @@
 import { errorResponse, FetchError, fetchPublic, parseUrl } from './_lib/fetchSafe.js'
-import { BUCKET, rpc, SERVICE_KEY, SUPABASE_URL } from './_lib/supabase.js'
+import { BUCKET, rpc, SERVICE_KEY, SUPABASE_URL, token } from './_lib/supabase.js'
 
 // Agent-facing item API. Auth: `Authorization: Bearer <muse token>` — the token
 // lives in Supabase (`muse_config`) and is checked by the muse_* RPC functions,
@@ -24,12 +24,6 @@ const COLORS = ['Black', 'White', 'Gray', 'Beige', 'Brown', 'Red', 'Burgundy', '
 const colorName = (value: unknown) => COLORS.find((name) => typeof value === 'string' && name.toLowerCase() === value.trim().toLowerCase())
 const colorsOf = (item: Record<string, unknown>) =>
   (Array.isArray(item.colors) && item.colors[0] === (item.color ?? undefined) ? item.colors : item.color ? [item.color] : []) as unknown[]
-
-function token(request: Request) {
-  const tok = request.headers.get('authorization')?.replace(/^Bearer /i, '') ?? ''
-  if (!tok) throw new FetchError('Missing Authorization: Bearer <token>', 401)
-  return tok
-}
 
 function checkId(id: unknown): string {
   if (typeof id !== 'string' || !/^[\w-]{8,64}$/.test(id)) throw new FetchError('Missing or invalid item id', 400)

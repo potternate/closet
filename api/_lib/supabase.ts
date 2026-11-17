@@ -6,6 +6,12 @@ export const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
 export const BUCKET = 'closet-photos'
 const RPC_TIMEOUT_MS = 10_000
 
+export function token(request: Request) {
+  const tok = request.headers.get('authorization')?.replace(/^Bearer /i, '') ?? ''
+  if (!tok) throw new FetchError('Missing Authorization: Bearer <token>', 401)
+  return tok
+}
+
 // Calls a muse_* RPC. Fails fast with a 504 instead of hanging when the database doesn't answer.
 export async function rpc(fn: string, payload: Record<string, unknown>) {
   let response: Response
