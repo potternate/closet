@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { cutOut, dominantColor, prepareImage, type PreparedImage } from '../lib/images'
 import { fetchProductImage, proxiedImage } from '../lib/productImport'
 import { imageBlob, type PhotoInput } from '../lib/store'
-import { CATEGORIES, itemColors, itemPhotos, SEASONS, withColors, type Draft, type Item, type ItemPhoto } from '../lib/types'
+import { CATEGORIES, FITS, FORMALITIES, itemColors, itemPhotos, PATTERNS, SEASONS, STYLES, withColors, type Draft, type Item, type ItemPhoto } from '../lib/types'
 import { ColorPicker, Chip } from './Chips'
 import { ItemImage } from './ItemImage'
 import { PhotosIcon, SparkleIcon } from './icons'
@@ -453,6 +453,38 @@ export function ItemEditor({ source, onSave, onCancel, saveLabel = 'Add to close
         ))}
       </div>
 
+      <details className="mt-5 group" open={Boolean(draft.subtype || draft.material || draft.pattern || draft.fit || draft.formality || draft.styles?.length)}>
+        <summary className="cursor-pointer list-none text-sm font-semibold text-stone-700">
+          Details <span className="font-normal text-stone-400">· type, material, fit, style</span>
+          <span className="float-right text-stone-400 group-open:rotate-180">⌄</span>
+        </summary>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <label className="block text-sm font-semibold text-stone-700">
+            Type
+            <input className={inputClass} value={draft.subtype ?? ''} onChange={(event) => update({ subtype: event.target.value || undefined })} placeholder="e.g. Bomber" />
+          </label>
+          <label className="block text-sm font-semibold text-stone-700">
+            Material
+            <input className={inputClass} value={draft.material ?? ''} onChange={(event) => update({ material: event.target.value || undefined })} placeholder="e.g. Wool" />
+          </label>
+        </div>
+        <ChipRow label="Pattern" options={PATTERNS} value={draft.pattern} onChange={(pattern) => update({ pattern })} />
+        <ChipRow label="Fit" options={FITS} value={draft.fit} onChange={(fit) => update({ fit })} />
+        <ChipRow label="Formality" options={FORMALITIES} value={draft.formality} onChange={(formality) => update({ formality })} />
+        <div className="mt-4 text-sm font-semibold text-stone-700">Style</div>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {STYLES.map((style) => {
+            const styles = draft.styles ?? []
+            const on = styles.includes(style)
+            return (
+              <Chip key={style} active={on} onClick={() => update({ styles: on ? styles.filter((s) => s !== style) : [...styles, style] })}>
+                {style}
+              </Chip>
+            )
+          })}
+        </div>
+      </details>
+
       <label className="mt-5 block text-sm font-semibold text-stone-700">
         Notes
         <textarea rows={2} className={inputClass} value={draft.notes ?? ''} onChange={(event) => update({ notes: event.target.value || undefined })} />
@@ -462,5 +494,20 @@ export function ItemEditor({ source, onSave, onCancel, saveLabel = 'Add to close
         {saving ? 'Saving…' : working ? 'Removing background…' : source.existing ? 'Save changes' : saveLabel}
       </button>
     </form>
+  )
+}
+
+function ChipRow<T extends string>({ label, options, value, onChange }: { label: string; options: readonly T[]; value?: T | null; onChange: (value: T | undefined) => void }) {
+  return (
+    <>
+      <div className="mt-4 text-sm font-semibold text-stone-700">{label}</div>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {options.map((option) => (
+          <Chip key={option} active={value === option} onClick={() => onChange(value === option ? undefined : option)}>
+            {option}
+          </Chip>
+        ))}
+      </div>
+    </>
   )
 }

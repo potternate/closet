@@ -17,6 +17,8 @@ import { Sheet } from './components/Sheet'
 import { shuffleOutfit, type Outfit } from './lib/outfits'
 import { dayKey, dayLabel, groupItems, SORTS, sortItemsBy, wearCount, wornDays, wornLabel, type SortKey } from './lib/wear'
 
+const KEPT_ON_REIMPORT = ['archived', 'archiveReason', 'subtype', 'material', 'pattern', 'fit', 'formality', 'styles'] as const
+
 export default function App() {
   const auth = useAuth()
   const closet = useCloset(auth.user?.id, auth.loading)
@@ -68,7 +70,7 @@ export default function App() {
       if (category !== 'All' && item.category !== category) return false
       if (color && !itemColors(item).includes(color)) return false
       if (season && !item.seasons.includes(season)) return false
-      const haystack = [item.name, item.brand, item.category, ...itemColors(item), item.notes, item.size].join(' ').toLowerCase()
+      const haystack = [item.name, item.brand, item.category, item.subtype, item.material, item.pattern, item.formality, item.fit, ...(item.styles ?? []), ...itemColors(item), item.notes, item.size].join(' ').toLowerCase()
       return words.every((word) => haystack.includes(word))
     })
     return sortItemsBy(matches, sort)
@@ -361,8 +363,13 @@ export default function App() {
               : undefined
             // Re-importing a link swaps the cover but keeps any extra shots already on the item.
             const merged = !photos?.length ? undefined : existing?.photos ? [photos[0], ...existing.photos, ...photos.slice(1)] : photos
-            // A link import knows nothing about archiving, so an archived item stays archived.
-            const kept = existing?.archived ? { ...draft, archived: existing.archived, archiveReason: existing.archiveReason } : draft
+            // A link import knows nothing about archiving or details, so keep what the item already has.
+            const kept = existing
+              ? {
+                  ...draft,
+                  ...Object.fromEntries(KEPT_ON_REIMPORT.filter((key) => existing[key] != null && draft[key] == null).map((key) => [key, existing[key]])),
+                }
+              : draft
             return closet.saveItem(tab === 'wishlist' ? { ...kept, wishlist: true } : kept, merged, existing)
           }}
         />

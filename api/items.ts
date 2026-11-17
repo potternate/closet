@@ -18,6 +18,10 @@ const BUCKET = 'closet-photos'
 
 const CATEGORIES = ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Bags', 'Accessories', 'Activewear', 'Other']
 const SEASONS = ['Spring', 'Summer', 'Fall', 'Winter']
+const PATTERNS = ['Solid', 'Striped', 'Plaid', 'Check', 'Graphic', 'Print', 'Floral', 'Camo', 'Colorblock', 'Textured', 'Other']
+const FORMALITIES = ['Casual', 'Smart casual', 'Business', 'Formal']
+const FITS = ['Slim', 'Regular', 'Relaxed', 'Oversized']
+const STYLES = ['Streetwear', 'Minimal', 'Classic', 'Outdoor', 'Workwear', 'Athletic', 'Techwear', 'Preppy', 'Vintage', 'Statement']
 const ARCHIVE_REASONS = ['Sold', 'Donated', 'Gave away', 'Lost', 'Worn out', 'Returned', 'Other']
 const COLORS = ['Black', 'White', 'Gray', 'Beige', 'Brown', 'Red', 'Burgundy', 'Pink', 'Orange', 'Yellow', 'Green', 'Olive', 'Blue', 'Navy', 'Purple', 'Multi']
 
@@ -60,6 +64,9 @@ function checkId(id: unknown): string {
 const isDay = (value: unknown) =>
   typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && new Date(`${value}T00:00:00Z`).getUTCDate() === Number(value.slice(8))
 
+const pick = (allowed: readonly string[], value: unknown) =>
+  allowed.find((name) => typeof value === 'string' && name.toLowerCase() === value.trim().toLowerCase())
+
 function isStringList(value: unknown, allowed?: readonly string[]) {
   return Array.isArray(value) && value.every((entry) => typeof entry === 'string' && (!allowed || allowed.includes(entry)))
 }
@@ -71,6 +78,22 @@ function checkDraft(body: Record<string, unknown>) {
     if (body[key] === undefined) continue
     if (typeof body[key] !== 'string') throw new FetchError(`${key} must be a string`, 400)
     draft[key] = body[key]
+  }
+  for (const key of ['subtype', 'material'] as const) {
+    if (body[key] === undefined) continue
+    if (body[key] !== null && typeof body[key] !== 'string') throw new FetchError(`${key} must be a string or null`, 400)
+    draft[key] = (body[key] as string | null)?.trim() || null
+  }
+  for (const [key, allowed] of [['pattern', PATTERNS], ['formality', FORMALITIES], ['fit', FITS]] as const) {
+    if (body[key] === undefined) continue
+    const value = body[key] === null ? null : pick(allowed, body[key])
+    if (value === undefined) throw new FetchError(`${key} must be null or one of: ${allowed.join(', ')}`, 400)
+    draft[key] = value
+  }
+  if (body.styles !== undefined) {
+    const styles = body.styles === null ? [] : Array.isArray(body.styles) ? body.styles.map((style) => pick(STYLES, style)) : [undefined]
+    if (styles.includes(undefined)) throw new FetchError(`styles must be null or a list of: ${STYLES.join(', ')}`, 400)
+    draft.styles = [...new Set(styles)]
   }
   // `colors` is the full list (first = primary); `color` alone sets a single color.
   const colors = body.colors !== undefined ? body.colors : body.color !== undefined ? [body.color] : undefined
@@ -197,7 +220,7 @@ function filterItems(items: Record<string, unknown>[], params: URLSearchParams) 
     if (wishlist === 'true' && item.wishlist !== true) return false
     if (wishlist === 'false' && item.wishlist === true) return false
     if (archived !== 'all' && Boolean(item.archived) !== (archived === 'true')) return false
-    const haystack = [...['name', 'brand', 'category', 'size', 'notes'].map((key) => item[key]), ...colorsOf(item)].map(loose).join(' ')
+    const haystack = [...['name', 'brand', 'category', 'subtype', 'material', 'pattern', 'formality', 'fit', 'size', 'notes'].map((key) => item[key]), ...colorsOf(item), ...(Array.isArray(item.styles) ? item.styles : [])].map(loose).join(' ')
     return words.every((word) => haystack.includes(word))
   })
 }
