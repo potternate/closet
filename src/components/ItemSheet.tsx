@@ -233,16 +233,18 @@ function PhotoGallery({ item }: { item: Item }) {
   )
 }
 
-export function WearRow({ item, onToggle, onLogDay }: { item: Pick<Item, 'wears'>; onToggle: (worn: boolean) => void; onLogDay?: (day: string) => void }) {
+export function WearRow({ item, onToggle, onLogDay }: { item: Pick<Item, 'wears' | 'wearNotes'>; onToggle: (worn: boolean) => void; onLogDay?: (day: string) => void }) {
   const today = dayKey()
   const wornToday = Boolean(item.wears?.includes(today))
   const count = wearCount(item)
+  const last = item.wears?.length ? [...item.wears].sort().at(-1)! : undefined
+  const lastNote = last ? item.wearNotes?.[last] : undefined
   return (
     <div className="mt-4 rounded-2xl bg-stone-50 py-2.5 pr-2.5 pl-3.5 ring-1 ring-stone-100">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="text-sm font-semibold text-stone-800">{count ? `Worn ${count === 1 ? 'once' : `${count} times`}` : 'Never worn'}</div>
-          <div className="text-xs text-stone-500">{count ? `Last ${wornLabel(item.wears, today).replace(/^Worn /, '')}` : 'Tap when you wear it'}</div>
+          <div className="text-xs text-stone-500">{count ? `Last ${wornLabel(item.wears, today).replace(/^Worn /, '')}${lastNote?.occasion ? ` · ${lastNote.occasion}` : ''}` : 'Tap when you wear it'}</div>
         </div>
         <button
           onClick={() => onToggle(!wornToday)}

@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from './supabase'
 import { deleteLocalImage, loadLocalImage, saveLocalImage, type PreparedImage } from './images'
 import type { Outfit, OutfitDraft } from './outfits'
-import { itemPhotos, withPhotos, type Draft, type Item, type ItemPhoto } from './types'
-import { toggleDay } from './wear'
+import { itemPhotos, withPhotos, type Draft, type Item, type ItemPhoto, type WearNote } from './types'
+import { toggleDay, withWearNote } from './wear'
 
 export type SyncStatus = 'local' | 'syncing' | 'synced' | 'error'
 
@@ -409,7 +409,7 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
       const items = current.items.map((item) => {
         if (!ids.has(item.id)) return item
         dirty = markDirty(dirty, item.id)
-        return { ...item, wears: toggleDay(item.wears, day, worn), updatedAt: now }
+        return { ...item, wears: toggleDay(item.wears, day, worn), ...(!worn && { wearNotes: withWearNote(item.wearNotes, day, undefined) }), updatedAt: now }
       })
       const outfits = outfitId
         ? {
@@ -421,6 +421,23 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
           }
         : current.outfits
       commit({ ...current, items, dirty, outfits })
+      void syncAgain.current()
+    },
+    [commit],
+  )
+
+  const setWearNote = useCallback(
+    (itemIds: string[], day: string, note: WearNote | undefined) => {
+      const now = Date.now()
+      const current = stateRef.current
+      const ids = new Set(itemIds)
+      let dirty = current.dirty
+      const items = current.items.map((item) => {
+        if (!ids.has(item.id)) return item
+        dirty = markDirty(dirty, item.id)
+        return { ...item, wearNotes: withWearNote(item.wearNotes, day, note), updatedAt: now }
+      })
+      commit({ ...current, items, dirty })
       void syncAgain.current()
     },
     [commit],
@@ -439,7 +456,7 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
     [commit],
   )
 
-  return { setWorn, patchItem, items: state.items, outfits: state.outfits.records, syncStatus, saveItem, deleteItem, saveOutfit, deleteOutfit }
+  return { setWorn, setWearNote, patchItem, items: state.items, outfits: state.outfits.records, syncStatus, saveItem, deleteItem, saveOutfit, deleteOutfit }
 }
 
 function trashPaths(trash: string[], photos: ItemPhoto[]) {

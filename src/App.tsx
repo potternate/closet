@@ -423,6 +423,7 @@ export default function App() {
             day={openDay}
             items={openDayItems}
             onOpenItem={(item) => setOpenId(item.id)}
+            onSaveNote={(note) => closet.setWearNote(openDayItems.map((item) => item.id), openDay, note)}
             onSaveOutfit={() => {
               setOutfitEditor({ initialIds: openDayItems.map((item) => item.id) })
               setOpenDay(undefined)

@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { sortForOutfit } from '../lib/outfits'
-import type { Item } from '../lib/types'
-import { dayLabel } from '../lib/wear'
+import { OCCASIONS, type Item, type WearNote } from '../lib/types'
+import { dayLabel, dayNote } from '../lib/wear'
+import { Chip } from './Chips'
 import { ItemImage } from './ItemImage'
 import { OutfitCollage } from './OutfitCollage'
 import { CalendarIcon } from './icons'
@@ -26,6 +28,7 @@ export function WornView({ days, onOpen }: { days: { day: string; items: Item[] 
             <div className="truncate text-sm font-semibold text-stone-900">{dayLabel(day)}</div>
             <div className="truncate text-xs text-stone-500">
               {items.length} {items.length === 1 ? 'piece' : 'pieces'}
+              {dayNote(items, day)?.occasion && ` · ${dayNote(items, day)?.occasion}`}
             </div>
           </div>
         </button>
@@ -34,8 +37,25 @@ export function WornView({ days, onOpen }: { days: { day: string; items: Item[] 
   )
 }
 
-export function WornDaySheet({ day, items, onOpenItem, onSaveOutfit }: { day: string; items: Item[]; onOpenItem: (item: Item) => void; onSaveOutfit: () => void }) {
+export function WornDaySheet({
+  day,
+  items,
+  onOpenItem,
+  onSaveOutfit,
+  onSaveNote,
+}: {
+  day: string
+  items: Item[]
+  onOpenItem: (item: Item) => void
+  onSaveOutfit: () => void
+  onSaveNote: (note: WearNote) => void
+}) {
   const pieces = sortForOutfit(items)
+  const saved = dayNote(items, day)
+  const [occasion, setOccasion] = useState(saved?.occasion)
+  const [note, setNote] = useState(saved?.note ?? '')
+  const occasions = saved?.occasion && !(OCCASIONS as readonly string[]).includes(saved.occasion) ? [...OCCASIONS, saved.occasion] : OCCASIONS
+  const changed = (occasion ?? '') !== (saved?.occasion ?? '') || note.trim() !== (saved?.note ?? '')
   return (
     <div>
       <OutfitCollage items={pieces} className="aspect-square w-full rounded-3xl" padding="p-2.5" />
@@ -53,6 +73,27 @@ export function WornDaySheet({ day, items, onOpenItem, onSaveOutfit }: { day: st
           </button>
         ))}
       </div>
+      <div className="mt-4 text-sm font-semibold text-stone-700">Occasion</div>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {occasions.map((option) => (
+          <Chip key={option} active={occasion === option} onClick={() => setOccasion(occasion === option ? undefined : option)}>
+            {option}
+          </Chip>
+        ))}
+      </div>
+      <input
+        value={note}
+        onChange={(event) => setNote(event.target.value)}
+        maxLength={200}
+        placeholder="Add a note, e.g. Sam's wedding"
+        aria-label="Note"
+        className="mt-3 w-full rounded-xl bg-surface px-3.5 py-2.5 text-stone-900 ring-1 ring-stone-200 placeholder:text-stone-400"
+      />
+      {changed && (
+        <button onClick={() => onSaveNote({ occasion, note })} className="mt-3 w-full rounded-xl bg-emerald-100 py-3 font-semibold text-emerald-800">
+          Save note
+        </button>
+      )}
       <button onClick={onSaveOutfit} className="mt-5 w-full rounded-xl bg-stone-900 py-3 font-semibold text-stone-50">
         Save as outfit
       </button>

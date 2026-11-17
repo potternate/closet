@@ -228,7 +228,11 @@ function filterItems(items: Record<string, unknown>[], params: URLSearchParams) 
 export async function GET(request: Request) {
   try {
     const items = (await rpc('muse_list', { tok: token(request) })) as Record<string, unknown>[] | null
-    return Response.json({ items: filterItems(items ?? [], new URL(request.url).searchParams) })
+    const withLastWorn = (items ?? []).map((item) => {
+      const wears = Array.isArray(item.wears) ? (item.wears as string[]) : []
+      return wears.length ? { ...item, lastWorn: [...wears].sort().at(-1) } : item
+    })
+    return Response.json({ items: filterItems(withLastWorn, new URL(request.url).searchParams) })
   } catch (error) {
     return errorResponse(error)
   }
@@ -306,7 +310,7 @@ export async function DELETE(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  // Log wears: PUT { ids: ["...", ...], day: "YYYY-MM-DD" } — idempotent per day.
+  // Log wears: PUT { ids: ["...", ...], day: "YYYY-MM-DD", occasion?, note? } — idempotent per day.
   try {
     const tok = token(request)
     const body = (await request.json()) as Record<string, unknown>
@@ -315,7 +319,15 @@ export async function PUT(request: Request) {
     }
     const day = body.day === undefined ? new Date().toISOString().slice(0, 10) : body.day
     if (typeof day !== 'string') throw new FetchError('day must be YYYY-MM-DD', 400)
-    return Response.json({ worn: await rpc('muse_wear', { tok, item_ids: body.ids, day }) })
+    const text = (field: 'occasion' | 'note', max: number) => {
+      const value = body[field]
+      if (value === undefined || value === null) return null
+      if (typeof value !== 'string' || value.length > max) throw new FetchError(`${field} must be text up to ${max} characters`, 400)
+      return value
+    }
+    const occasion = text('occasion', 40)
+    const note = text('note', 200)
+    return Response.json({ worn: await rpc('muse_wear', { tok, item_ids: body.ids, day, ...(occasion && { occasion }), ...(note && { note }) }) })
   } catch (error) {
     return errorResponse(error)
   }
