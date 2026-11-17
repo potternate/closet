@@ -361,7 +361,9 @@ export default function App() {
               : undefined
             // Re-importing a link swaps the cover but keeps any extra shots already on the item.
             const merged = !photos?.length ? undefined : existing?.photos ? [photos[0], ...existing.photos, ...photos.slice(1)] : photos
-            return closet.saveItem(tab === 'wishlist' ? { ...draft, wishlist: true } : draft, merged, existing)
+            // A link import knows nothing about archiving, so an archived item stays archived.
+            const kept = existing?.archived ? { ...draft, archived: existing.archived, archiveReason: existing.archiveReason } : draft
+            return closet.saveItem(tab === 'wishlist' ? { ...kept, wishlist: true } : kept, merged, existing)
           }}
         />
       )}
