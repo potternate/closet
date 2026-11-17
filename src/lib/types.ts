@@ -33,6 +33,12 @@ export type Fit = (typeof FITS)[number]
 export const STYLES = ['Streetwear', 'Minimal', 'Classic', 'Outdoor', 'Workwear', 'Athletic', 'Techwear', 'Preppy', 'Vintage', 'Statement'] as const
 export type Style = (typeof STYLES)[number]
 
+export const OCCASIONS = ['Work', 'Casual', 'Going out', 'Date', 'Event', 'Travel', 'Workout', 'Home'] as const
+export interface WearNote {
+  occasion?: string
+  note?: string
+}
+
 export const ARCHIVE_REASONS = ['Sold', 'Donated', 'Gave away', 'Lost', 'Worn out', 'Returned', 'Other'] as const
 export type ArchiveReason = (typeof ARCHIVE_REASONS)[number]
 
@@ -62,6 +68,8 @@ export interface Item {
   url?: string
   notes?: string
   wears?: string[]
+  // Optional occasion/note per worn day (YYYY-MM-DD), shared by everything worn that day.
+  wearNotes?: Record<string, WearNote>
   wishlist?: boolean
   // Day (YYYY-MM-DD) it left the closet; archived items keep their history but don't count as owned.
   archived?: string | null

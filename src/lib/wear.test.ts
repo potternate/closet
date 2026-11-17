@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { Item } from './types.ts'
-import { costPerWear, dayKey, dayLabel, sortItemsBy, toggleDay, wornDays, wornLabel } from './wear.ts'
+import { costPerWear, dayKey, dayLabel, dayNote, sortItemsBy, toggleDay, withWearNote, wornDays, wornLabel } from './wear.ts'
 
 const item = (id: string, wears: string[] | undefined, createdAt = 0, price?: number): Item => ({
   id,
@@ -79,4 +79,12 @@ test('wornDays groups items by day, newest first', () => {
 test('dayLabel names recent days', () => {
   assert.equal(dayLabel('2026-03-10', '2026-03-10'), 'Today')
   assert.equal(dayLabel('2026-03-09', '2026-03-10'), 'Yesterday')
+})
+
+test('withWearNote sets, trims, and clears a day note', () => {
+  const notes = withWearNote(undefined, '2026-11-10', { occasion: ' Event ', note: '' })
+  assert.deepEqual(notes, { '2026-11-10': { occasion: 'Event' } })
+  assert.deepEqual(withWearNote(notes, '2026-11-11', { note: 'Dinner' }), { '2026-11-10': { occasion: 'Event' }, '2026-11-11': { note: 'Dinner' } })
+  assert.equal(withWearNote(notes, '2026-11-10', undefined), undefined)
+  assert.equal(dayNote([{}, { wearNotes: notes }], '2026-11-10')?.occasion, 'Event')
 })

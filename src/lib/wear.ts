@@ -1,4 +1,4 @@
-import { COLORS, itemColors, type Item } from './types.ts'
+import { COLORS, itemColors, type Item, type WearNote } from './types.ts'
 
 export const dayKey = (date = new Date()) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
@@ -89,4 +89,17 @@ export function dayLabel(day: string, today = dayKey()) {
   const [year, month, date] = day.split('-').map(Number)
   const value = new Date(year, month - 1, date)
   return value.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', ...(year !== Number(today.slice(0, 4)) && { year: 'numeric' }) })
+}
+
+export const dayNote = (items: Pick<Item, 'wearNotes'>[], day: string): WearNote | undefined =>
+  items.find((item) => item.wearNotes?.[day])?.wearNotes?.[day]
+
+export function withWearNote(notes: Item['wearNotes'], day: string, note: WearNote | undefined) {
+  const { [day]: _old, ...rest } = notes ?? {}
+  const clean = note && {
+    ...(note.occasion?.trim() && { occasion: note.occasion.trim() }),
+    ...(note.note?.trim() && { note: note.note.trim() }),
+  }
+  const next = clean && Object.keys(clean).length ? { ...rest, [day]: clean } : rest
+  return Object.keys(next).length ? next : undefined
 }
