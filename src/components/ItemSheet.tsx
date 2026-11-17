@@ -4,7 +4,7 @@ import { ARCHIVE_REASONS, formatPrice, itemColors, itemPhotos, type ArchiveReaso
 import { costPerWear, dayKey, dayLabel, wearCount, wornLabel } from '../lib/wear'
 import { Swatch } from './Chips'
 import { ItemEditor } from './ItemEditor'
-import { ItemImage } from './ItemImage'
+import { PhotoSwiper } from './ItemImage'
 import { Sheet } from './Sheet'
 
 interface Props {
@@ -65,7 +65,7 @@ export function ItemSheet({ item, onSave, onDelete, onToggleWorn, onLogDay, onBo
 
   return (
     <Sheet onClose={onClose}>
-      <PhotoGallery item={item} />
+      <PhotoSwiper item={item} className="aspect-square w-full rounded-3xl bg-stone-100" imageClassName="p-5" />
       <div className="mt-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-xs font-semibold tracking-wide text-stone-400 uppercase">{item.category}</div>
@@ -199,37 +199,6 @@ export function ItemSheet({ item, onSave, onDelete, onToggleWorn, onLogDay, onBo
         </button>
       )}
     </Sheet>
-  )
-}
-
-function PhotoGallery({ item }: { item: Item }) {
-  const photos = itemPhotos(item)
-  const [index, setIndex] = useState(0)
-  if (photos.length < 2) {
-    return (
-      <div className="relative aspect-square w-full overflow-hidden rounded-3xl bg-stone-100">
-        <ItemImage item={item} className="absolute inset-0 h-full w-full p-5" />
-      </div>
-    )
-  }
-  return (
-    <div className="relative">
-      <div
-        className="flex aspect-square w-full snap-x snap-mandatory overflow-x-auto rounded-3xl bg-stone-100 [scrollbar-width:none]"
-        onScroll={(event) => setIndex(Math.round(event.currentTarget.scrollLeft / event.currentTarget.clientWidth))}
-      >
-        {photos.map((photo) => (
-          <div key={photo.id} className="relative h-full w-full shrink-0 snap-center">
-            <ItemImage item={item} photo={photo} className="absolute inset-0 h-full w-full p-5" />
-          </div>
-        ))}
-      </div>
-      <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center gap-1.5">
-        {photos.map((photo, dot) => (
-          <span key={photo.id} className={`h-1.5 w-1.5 rounded-full ${dot === index ? 'bg-stone-800' : 'bg-stone-300'}`} />
-        ))}
-      </div>
-    </div>
   )
 }
 
