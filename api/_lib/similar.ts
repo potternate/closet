@@ -44,7 +44,7 @@ export function colorNames(value: unknown): string[] {
 export function itemColors(item: Item): string[] {
   // Same contract as the app: if `colors` and `color` disagree, an older client edited `color` last, so it wins.
   const colors = Array.isArray(item.colors) ? (item.colors as string[]) : []
-  if (colors.length && colors[0] === (item.color ?? undefined)) return colors
+  if (colors.length && (!item.color || colors[0] === item.color)) return colors
   return typeof item.color === 'string' && item.color ? [item.color] : []
 }
 

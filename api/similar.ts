@@ -1,3 +1,4 @@
+import { guessCategory } from './_lib/category.js'
 import { errorResponse, FetchError } from './_lib/fetchSafe.js'
 import { colorNames, rankSimilar, sizesIn, type Candidate } from './_lib/similar.js'
 import { rpc, token } from './_lib/supabase.js'
@@ -33,6 +34,7 @@ export async function GET(request: Request) {
         }
       }
     }
+    candidate.category ??= candidate.name ? guessCategory(candidate.name) : undefined
     if (!candidate.name && !candidate.brand && !candidate.url) throw new FetchError('Send url, or name/brand/category/color', 400)
     const limit = Math.min(Math.max(Number(params.get('limit')) || 5, 1), 20)
     const withArchived = params.get('archived') === 'true'
