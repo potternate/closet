@@ -80,18 +80,19 @@ function modelWords(name: unknown, brand: unknown) {
 export function rankSimilar(candidate: Candidate, items: Item[], limit = 5): Match[] {
   const candidateColors = candidate.colors ?? []
   const model = modelWords(candidate.name, candidate.brand)
+  const nameWords = words(candidate.name)
   const matches = items.map((item): Match => {
     const reasons: string[] = []
     let score = 0
     const link = Boolean(candidate.url && sameLink(candidate.url, item.url))
     if (link) (score += 100), reasons.push('same product link')
-    // With no brand given, the item's brand counts if every word of it is in the candidate's name.
+    // With no brand given, the item's brand counts if the candidate's name starts with it ("Clarks Originals …"),
+    // so a collaborator named later ("Adidas Samba Kith") doesn't.
     const brandWords = words(item.brand)
-    const brand = candidate.brand
-      ? brandMatch(candidate.brand, String(item.brand ?? ''))
-      : brandWords.length > 0 && brandWords.every((word) => model.has(word))
+    const inferred = !candidate.brand && brandWords.length > 0 && brandWords.every((word, i) => nameWords[i] === word)
+    const brand = candidate.brand ? brandMatch(candidate.brand, String(item.brand ?? '')) : inferred
     if (brand) (score += 3), reasons.push('same brand')
-    const ours = candidate.brand ? model : new Set([...model].filter((word) => !brandWords.includes(word)))
+    const ours = inferred ? new Set([...model].filter((word) => !brandWords.includes(word))) : model
     const theirs = modelWords(item.name, item.brand)
     const shared = [...ours].filter((word) => theirs.has(word))
     const overlap = shared.length ? shared.length / new Set([...ours, ...theirs]).size : 0

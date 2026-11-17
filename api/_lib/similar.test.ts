@@ -70,3 +70,12 @@ test('a brand named only in the candidate name still counts as the same brand', 
   assert.ok(top?.reasons.includes('same brand'))
   assert.equal(rankSimilar({ name: 'Clarks Originals Wallabee Boot', category: 'Shoes', colors: ['Beige'] }, shoes)[0]?.match, 'duplicate')
 })
+
+test('an inferred brand must lead the name: collaborators and color-named brands', () => {
+  const kith = [{ id: 'k', name: 'Kith Classics Tee', brand: 'Kith', category: 'Tops', colors: ['White'] }]
+  const samba = rankSimilar({ name: 'Adidas Samba OG Kith Classics', category: 'Shoes', colors: ['White'] }, kith)[0]
+  assert.ok(!samba?.reasons.includes('same brand'))
+  assert.notEqual(samba?.match, 'duplicate')
+  const offWhite = [{ id: 'o', name: 'Off-White Arrow Hoodie', brand: 'Off-White', category: 'Tops', colors: ['Black'] }]
+  assert.equal(rankSimilar({ name: 'Off-White Arrow Hoodie', category: 'Tops', colors: ['Black'] }, offWhite)[0]?.match, 'duplicate')
+})
