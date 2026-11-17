@@ -1,7 +1,8 @@
 // Category guessed from a product name; shared by the app's import and the API's similarity check.
 export const CATEGORY_KEYWORDS = [
-  ['Activewear', /\b(legging|sports? bra|running|gym|yoga|athletic|workout|track ?pant|jogger)/i],
+  // Shoes before Activewear, so a running shoe is Shoes and running shorts stay Activewear.
   ['Shoes', /\b((shoe|sneaker|boot|sandal|loafer|heel|pump|slipper|mule|clog|trainer|runner|oxford|flat|slide)s?|air (force|max)|dunk (low|high)|jordan \d+|yeezy|samba|gazelle|chuck taylor|old skool)\b/i],
+  ['Activewear', /\b(legging|sports? bra|running|gym|yoga|athletic|workout|track ?pant|jogger)/i],
   ['Bags', /\b(bag|tote|backpack|purse|clutch|wallet|crossbody|satchel|duffel)s?\b/i],
   ['Dresses', /\b(dress|gown|jumpsuit|romper)(es|s)?\b/i],
   ['Outerwear', /\b(jacket|coat|parka|blazer|vest|puffer|anorak|trench|windbreaker|fleece|gilet|shacket|overshirt)s?\b/i],
