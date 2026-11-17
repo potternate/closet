@@ -3,7 +3,7 @@ import { errorResponse, FetchError, fetchPublic, parseUrl } from './_lib/fetchSa
 // Agent-facing item API. Auth: `Authorization: Bearer <muse token>` — the token
 // lives in Supabase (`muse_config`) and is checked by the muse_* RPC functions,
 // so this endpoint needs no secrets of its own: the anon key below is public.
-// GET    /api/items           -> { items: [{ id, ...fields }] }
+// GET    /api/items           -> { items: [{ id, ...fields }] } (archived items only with ?archived=true|all)
 // POST   /api/items           -> create. Body: item fields (name required) + optional `imageUrl` (cover) and
 //                                 `imageUrls` (more shots; the first becomes the cover when `imageUrl` is absent).
 // PATCH  /api/items           -> update. Body: { id, ...fields } merged into the item. `imageUrl` replaces the
@@ -18,6 +18,7 @@ const BUCKET = 'closet-photos'
 
 const CATEGORIES = ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Bags', 'Accessories', 'Activewear', 'Other']
 const SEASONS = ['Spring', 'Summer', 'Fall', 'Winter']
+const ARCHIVE_REASONS = ['Sold', 'Donated', 'Gave away', 'Lost', 'Worn out', 'Returned', 'Other']
 const COLORS = ['Black', 'White', 'Gray', 'Beige', 'Brown', 'Red', 'Burgundy', 'Pink', 'Orange', 'Yellow', 'Green', 'Olive', 'Blue', 'Navy', 'Purple', 'Multi']
 
 const colorName = (value: unknown) => COLORS.find((name) => typeof value === 'string' && name.toLowerCase() === value.trim().toLowerCase())
@@ -56,6 +57,9 @@ function checkId(id: unknown): string {
   return id
 }
 
+const isDay = (value: unknown) =>
+  typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && new Date(`${value}T00:00:00Z`).getUTCDate() === Number(value.slice(8))
+
 function isStringList(value: unknown, allowed?: readonly string[]) {
   return Array.isArray(value) && value.every((entry) => typeof entry === 'string' && (!allowed || allowed.includes(entry)))
 }
@@ -93,6 +97,21 @@ function checkDraft(body: Record<string, unknown>) {
   if (body.wishlist !== undefined) {
     if (typeof body.wishlist !== 'boolean') throw new FetchError('wishlist must be a boolean', 400)
     draft.wishlist = body.wishlist
+  }
+  // `archived: true` archives as of today, a YYYY-MM-DD date archives as of that day, false/null restores.
+  if (body.archived !== undefined) {
+    const day = body.archived === true ? new Date().toISOString().slice(0, 10) : body.archived
+    if (day !== false && day !== null && !isDay(day)) {
+      throw new FetchError('archived must be true, false, null or YYYY-MM-DD', 400)
+    }
+    draft.archived = day || null
+    if (!day) draft.archiveReason = null
+  }
+  if (body.archiveReason !== undefined && draft.archived !== null) {
+    if (body.archiveReason !== null && (typeof body.archiveReason !== 'string' || !ARCHIVE_REASONS.includes(body.archiveReason))) {
+      throw new FetchError(`archiveReason must be one of: ${ARCHIVE_REASONS.join(', ')}`, 400)
+    }
+    draft.archiveReason = body.archiveReason
   }
   if (body.price !== undefined) {
     const price = Number(body.price)
@@ -156,7 +175,7 @@ async function deleteImage(storagePath: string) {
   }).catch(() => undefined)
 }
 
-// GET filters: ?q=words&category=Shoes&color=Black&brand=nike&wishlist=true|false
+// GET filters: ?q=words&category=Shoes&color=Black&brand=nike&wishlist=true|false&archived=false|true|all
 function filterItems(items: Record<string, unknown>[], params: URLSearchParams) {
   const text = (value: unknown) => (typeof value === 'string' ? value.toLowerCase() : '')
   const loose = (value: unknown) => text(value).replace(/['’`.]/g, '')
@@ -169,12 +188,15 @@ function filterItems(items: Record<string, unknown>[], params: URLSearchParams) 
   if (wishlist !== undefined && wishlist !== 'true' && wishlist !== 'false') {
     throw new FetchError('wishlist must be true or false', 400)
   }
+  const archived = params.get('archived')?.toLowerCase() ?? 'false'
+  if (!['true', 'false', 'all'].includes(archived)) throw new FetchError('archived must be true, false or all', 400)
   return items.filter((item) => {
     if (category && text(item.category) !== category) return false
     if (color && !colorsOf(item).some((name) => text(name) === color)) return false
     if (brand && !loose(item.brand).includes(brand)) return false
     if (wishlist === 'true' && item.wishlist !== true) return false
     if (wishlist === 'false' && item.wishlist === true) return false
+    if (archived !== 'all' && Boolean(item.archived) !== (archived === 'true')) return false
     const haystack = [...['name', 'brand', 'category', 'size', 'notes'].map((key) => item[key]), ...colorsOf(item)].map(loose).join(' ')
     return words.every((word) => haystack.includes(word))
   })

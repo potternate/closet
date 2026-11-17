@@ -24,6 +24,9 @@ export const COLORS = [
 ] as const
 export type ColorName = (typeof COLORS)[number]['name']
 
+export const ARCHIVE_REASONS = ['Sold', 'Donated', 'Gave away', 'Lost', 'Worn out', 'Returned', 'Other'] as const
+export type ArchiveReason = (typeof ARCHIVE_REASONS)[number]
+
 export interface ItemPhoto {
   id: string
   type: 'image/png' | 'image/jpeg'
@@ -45,6 +48,9 @@ export interface Item {
   notes?: string
   wears?: string[]
   wishlist?: boolean
+  // Day (YYYY-MM-DD) it left the closet; archived items keep their history but don't count as owned.
+  archived?: string | null
+  archiveReason?: ArchiveReason | null
   image?: ItemPhoto
   photos?: ItemPhoto[]
   createdAt: number
