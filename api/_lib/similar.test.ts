@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { colorNames, rankSimilar, sizesIn } from './similar.ts'
+import { colorNames, itemColors, rankSimilar, sizesIn } from './similar.ts'
 
 const closet = [
   { id: 'af1', name: 'Nike Air Force 1 Skeleton', brand: 'Nike', category: 'Shoes', colors: ['White'], url: 'https://www.nike.com/t/af1-skeleton/abc' },
@@ -44,3 +44,15 @@ test('sizes owned in a category, most common first', () => {
   assert.deepEqual(sizesIn('Tops', closet), [{ size: 'L', count: 2 }, { size: 'XL', count: 1 }])
   assert.deepEqual(sizesIn(undefined, closet), [])
 })
+
+test('a legacy color edit wins over a stale colors list', () => {
+  assert.deepEqual(itemColors({ id: 'x', name: 'Tee', colors: ['Black', 'White'], color: 'Navy' }), ['Navy'])
+  assert.deepEqual(itemColors({ id: 'y', name: 'Tee', colors: ['Black', 'White'], color: 'Black' }), ['Black', 'White'])
+})
+
+test('variant query params keep links apart, tracking params do not', () => {
+  const shop = [{ id: 'v1', name: 'Wool Runner', url: 'https://shop.example.com/products/wool-runner?variant=1&utm_source=x' }]
+  assert.equal(rankSimilar({ name: 'Wool Runner', url: 'https://shop.example.com/products/wool-runner?variant=2' }, shop)[0]?.match, 'similar')
+  assert.equal(rankSimilar({ name: 'Wool Runner', url: 'https://www.shop.example.com/products/wool-runner/?variant=1' }, shop)[0]?.match, 'duplicate')
+})
+

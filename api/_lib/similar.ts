@@ -42,15 +42,21 @@ export function colorNames(value: unknown): string[] {
 }
 
 export function itemColors(item: Item): string[] {
-  if (Array.isArray(item.colors) && item.colors.length) return item.colors as string[]
-  return typeof item.color === 'string' ? [item.color] : []
+  // Same contract as the app: if `colors` and `color` disagree, an older client edited `color` last, so it wins.
+  const colors = Array.isArray(item.colors) ? (item.colors as string[]) : []
+  if (colors.length && (!item.color || colors[0] === item.color)) return colors
+  return typeof item.color === 'string' && item.color ? [item.color] : []
 }
+
+const VARIANT_PARAMS = /^(variant|color|colour|sku|style|dwvar_.*)$/i
 
 function sameLink(a: unknown, b: unknown) {
   const key = (value: unknown) => {
     try {
       const url = new URL(String(value))
-      return `${url.hostname.replace(/^www\./, '')}${url.pathname.replace(/\/+$/, '')}`.toLowerCase()
+      // Tracking params are dropped; params that pick a variant (color, size, sku) keep links apart.
+      const variant = [...url.searchParams].filter(([name]) => VARIANT_PARAMS.test(name)).map(([name, value]) => `${name.toLowerCase()}=${value}`).sort().join('&')
+      return `${url.hostname.replace(/^www\./, '')}${url.pathname.replace(/\/+$/, '')}`.toLowerCase() + (variant ? `?${variant}` : '')
     } catch {
       return ''
     }
