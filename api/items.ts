@@ -288,9 +288,9 @@ export async function DELETE(request: Request) {
   try {
     const tok = token(request)
     const id = checkId(new URL(request.url).searchParams.get('id'))
-    const current = await findItem(tok, id)
+    const [current, userId] = await Promise.all([findItem(tok, id), rpc('muse_whoami', { tok }) as Promise<string>])
     const deleted = await rpc('muse_delete', { tok, item_id: id })
-    if (current) await deleteImages(storedPhotos(current), await rpc('muse_whoami', { tok }))
+    if (current) await deleteImages(storedPhotos(current), userId)
     return Response.json(deleted)
   } catch (error) {
     return errorResponse(error)
