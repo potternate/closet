@@ -124,7 +124,7 @@ export function ItemSheet({ item, onSave, onDelete, onToggleWorn, onLogDay, onBo
         onClick={async () => {
           setDuplicating(true)
           try {
-            const { id: _id, createdAt: _created, updatedAt: _updated, image: _image, photos: _photos, wears: _wears, ...draft } = item
+            const { id: _id, createdAt: _created, updatedAt: _updated, image: _image, photos: _photos, wears: _wears, archived: _archived, archiveReason: _reason, ...draft } = item
             const copies = await Promise.all(
               itemPhotos(item).map(async (photo) => {
                 const blob = await imageBlob(photo)
