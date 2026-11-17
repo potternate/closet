@@ -1,5 +1,24 @@
 import { errorResponse, FetchError, fetchPublic, parseUrl } from './_lib/fetchSafe.js'
 import { BUCKET, rpc, SERVICE_KEY, SUPABASE_URL, token } from './_lib/supabase.js'
+import { lookupProduct } from './product.js'
+
+// Fills price, currency and brand from the product page when the caller left them out. Gives up after 8s.
+async function fillFromLink(draft: Record<string, unknown>) {
+  if (typeof draft.url !== 'string' || (draft.price !== undefined && draft.brand)) return
+  const timeout = new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 8000))
+  const product = await Promise.race([lookupProduct(draft.url).catch(() => undefined), timeout])
+  if (!product) return
+  if (draft.price === undefined && product.price !== undefined) {
+    draft.price = product.price
+    // The page's currency is the one that price is in, whatever the caller assumed.
+    if (product.currency) draft.currency = product.currency
+  }
+  if (!draft.brand && product.brand) draft.brand = product.brand
+}
+
+// Fields an owned item should have so shopping can rely on it; the muse should ask Nate for these.
+const missingFields = (item: Record<string, unknown>) =>
+  item.wishlist ? [] : (['size', 'price', 'brand'] as const).filter((key) => item[key] === undefined || item[key] === null || item[key] === '')
 
 // Agent-facing item API. Auth: `Authorization: Bearer <muse token>` — the token
 // lives in Supabase (`muse_config`) and is checked by the muse_* RPC functions,
@@ -178,7 +197,7 @@ async function deleteImage(storagePath: string) {
   }).catch(() => undefined)
 }
 
-// GET filters: ?q=words&category=Shoes&color=Black&brand=nike&wishlist=true|false&archived=false|true|all
+// GET filters: ?q=words&category=Shoes&color=Black&brand=nike&wishlist=true|false&archived=false|true|all&missing=size|price|brand
 function filterItems(items: Record<string, unknown>[], params: URLSearchParams) {
   const text = (value: unknown) => (typeof value === 'string' ? value.toLowerCase() : '')
   const loose = (value: unknown) => text(value).replace(/['’`.]/g, '')
@@ -193,6 +212,8 @@ function filterItems(items: Record<string, unknown>[], params: URLSearchParams) 
   }
   const archived = params.get('archived')?.toLowerCase() ?? 'false'
   if (!['true', 'false', 'all'].includes(archived)) throw new FetchError('archived must be true, false or all', 400)
+  const missing = params.get('missing')?.toLowerCase()
+  if (missing && !['size', 'price', 'brand'].includes(missing)) throw new FetchError('missing must be size, price or brand', 400)
   return items.filter((item) => {
     if (category && text(item.category) !== category) return false
     if (color && !colorsOf(item).some((name) => text(name) === color)) return false
@@ -200,6 +221,7 @@ function filterItems(items: Record<string, unknown>[], params: URLSearchParams) 
     if (wishlist === 'true' && item.wishlist !== true) return false
     if (wishlist === 'false' && item.wishlist === true) return false
     if (archived !== 'all' && Boolean(item.archived) !== (archived === 'true')) return false
+    if (missing && !missingFields(item).includes(missing as 'size')) return false
     const haystack = [...['name', 'brand', 'category', 'subtype', 'material', 'pattern', 'formality', 'fit', 'size', 'notes'].map((key) => item[key]), ...colorsOf(item), ...(Array.isArray(item.styles) ? item.styles : [])].map(loose).join(' ')
     return words.every((word) => haystack.includes(word))
   })
@@ -226,6 +248,7 @@ export async function POST(request: Request) {
     if (typeof draft.name !== 'string' || !draft.name.trim()) throw new FetchError('name is required', 400)
     draft.category ??= 'Tops'
     draft.seasons ??= []
+    await fillFromLink(draft)
     const id = crypto.randomUUID()
     const now = Date.now()
     const { cover, extra } = imageUrlsOf(body)
@@ -234,7 +257,8 @@ export async function POST(request: Request) {
     const uploaded = userId ? await uploadImages(urls, userId) : []
     const data = { ...draft, id, image: uploaded[0], photos: uploaded.length > 1 ? uploaded.slice(1) : undefined, createdAt: now, updatedAt: now }
     try {
-      return Response.json({ item: await rpc('muse_create', { tok, item: data }) }, { status: 201 })
+      const item = (await rpc('muse_create', { tok, item: data })) as Record<string, unknown>
+      return Response.json({ item, missing: missingFields(item) }, { status: 201 })
     } catch (error) {
       // Only clean up on a definitive rejection — a lost response can still mean the write committed.
       if (error instanceof FetchError && error.status < 500) await deleteImages(uploaded, userId)
@@ -278,7 +302,7 @@ export async function PATCH(request: Request) {
     // A replaced cover is no longer referenced anywhere, so its file goes too.
     const oldCover = cover && current ? storedPhotos({ image: current.image })[0] : undefined
     if (oldCover && !storedPhotos(item).some((photo) => photo.path === oldCover.path)) await deleteImages([oldCover], userId)
-    return Response.json({ item })
+    return Response.json({ item, missing: missingFields(item) })
   } catch (error) {
     return errorResponse(error)
   }
