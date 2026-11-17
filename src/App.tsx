@@ -5,7 +5,7 @@ import { CATEGORIES, COLORS, formatPrice, itemColors, SEASONS, type Category, ty
 import { AccountSheet } from './components/AccountSheet'
 import { AddSheet } from './components/AddSheet'
 import { Chip, Swatch } from './components/Chips'
-import { ItemImage } from './components/ItemImage'
+import { PhotoSwiper } from './components/ItemImage'
 import { StatsView } from './components/StatsView'
 import { ItemSheet } from './components/ItemSheet'
 import { CalendarIcon, ChartIcon, HangerIcon, HeartIcon, LayersIcon, PlusIcon, SearchIcon, SlidersIcon, UserIcon } from './components/icons'
@@ -462,7 +462,7 @@ function ItemCard({ item, detail, selected, onOpen }: { item: Item; detail?: str
       className={`group overflow-hidden rounded-2xl bg-surface text-left shadow-sm ring-1 active:scale-[0.98] ${selected ? 'ring-2 ring-stone-900' : 'ring-stone-200/70'}`}
     >
       <div className="relative aspect-[4/5] bg-stone-100/70">
-        <ItemImage item={item} className="h-full w-full p-3" />
+        <PhotoSwiper item={item} className="h-full w-full" imageClassName="p-3" small />
         {selected !== undefined && (
           <span className={`absolute top-2 right-2 grid h-6 w-6 place-items-center rounded-full text-xs font-bold ${selected ? 'bg-stone-900 text-stone-50' : 'bg-surface text-transparent ring-1 ring-stone-300'}`}>✓</span>
         )}
