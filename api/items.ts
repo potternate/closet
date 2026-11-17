@@ -5,7 +5,7 @@ import { lookupProduct } from './product.js'
 // Fills price, currency and brand from the product page when the caller left them out. Gives up after 8s.
 async function fillFromLink(draft: Record<string, unknown>) {
   if (typeof draft.url !== 'string' || (draft.price !== undefined && draft.brand)) return
-  const timeout = new Promise<undefined>((resolve) => setTimeout(resolve, 8000))
+  const timeout = new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 8000))
   const product = await Promise.race([lookupProduct(draft.url).catch(() => undefined), timeout])
   if (!product) return
   if (draft.price === undefined && product.price !== undefined) {
