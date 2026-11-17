@@ -85,11 +85,16 @@ export function rankSimilar(candidate: Candidate, items: Item[], limit = 5): Mat
     let score = 0
     const link = Boolean(candidate.url && sameLink(candidate.url, item.url))
     if (link) (score += 100), reasons.push('same product link')
-    const brand = Boolean(candidate.brand && brandMatch(candidate.brand, String(item.brand ?? '')))
+    // With no brand given, the item's brand counts if every word of it is in the candidate's name.
+    const brandWords = words(item.brand)
+    const brand = candidate.brand
+      ? brandMatch(candidate.brand, String(item.brand ?? ''))
+      : brandWords.length > 0 && brandWords.every((word) => model.has(word))
     if (brand) (score += 3), reasons.push('same brand')
+    const ours = candidate.brand ? model : new Set([...model].filter((word) => !brandWords.includes(word)))
     const theirs = modelWords(item.name, item.brand)
-    const shared = [...model].filter((word) => theirs.has(word))
-    const overlap = shared.length ? shared.length / new Set([...model, ...theirs]).size : 0
+    const shared = [...ours].filter((word) => theirs.has(word))
+    const overlap = shared.length ? shared.length / new Set([...ours, ...theirs]).size : 0
     if (shared.length) (score += overlap * 6), reasons.push(`shares “${shared.join(' ')}”`)
     const category = Boolean(candidate.category && loose(candidate.category) === loose(item.category))
     if (category) (score += 2), reasons.push(`also ${item.category}`)
@@ -98,7 +103,7 @@ export function rankSimilar(candidate: Candidate, items: Item[], limit = 5): Mat
     if (sharedColors.length) (score += sharedColors[0] === colors[0] ? 1.5 : 1), reasons.push(sharedColors.join('/').toLowerCase())
     if (candidate.subtype && loose(candidate.subtype) === loose(item.subtype)) (score += 1.5), reasons.push(`same type (${item.subtype})`)
     // Near-duplicate: same brand, most of the shorter model name shared, and a shared color (same colorway).
-    const containment = shared.length ? shared.length / Math.min(model.size, theirs.size) : 0
+    const containment = shared.length ? shared.length / Math.min(ours.size, theirs.size) : 0
     const duplicate = link || (brand && containment >= 0.6 && sharedColors.length > 0 && (category || !candidate.category))
     const similar = (brand && overlap > 0) || (category && sharedColors.length > 0) || overlap >= 0.5
     return { item, score: Math.round(score * 10) / 10, match: duplicate ? 'duplicate' : similar ? 'similar' : 'related', reasons }
