@@ -50,6 +50,7 @@ export function ItemImage({ item, photo = item.image, className = '' }: { item: 
 export function PhotoSwiper({ item, className = '', imageClassName = '', small = false }: { item: Item; className?: string; imageClassName?: string; small?: boolean }) {
   const photos = itemPhotos(item)
   const [index, setIndex] = useState(0)
+  const [reached, setReached] = useState(0)
   if (photos.length < 2) {
     return (
       <div className={`relative overflow-hidden ${className}`}>
@@ -61,11 +62,16 @@ export function PhotoSwiper({ item, className = '', imageClassName = '', small =
     <div className={`relative overflow-hidden ${className}`}>
       <div
         className="flex h-full w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        onScroll={(event) => setIndex(Math.round(event.currentTarget.scrollLeft / event.currentTarget.clientWidth))}
+        onScroll={(event) => {
+          const next = Math.round(event.currentTarget.scrollLeft / event.currentTarget.clientWidth)
+          setIndex(next)
+          setReached((prev) => Math.max(prev, next))
+        }}
       >
-        {photos.map((photo) => (
+        {photos.map((photo, i) => (
           <div key={photo.id} className="relative h-full w-full shrink-0 snap-center">
-            <ItemImage item={item} photo={photo} className={`absolute inset-0 h-full w-full ${imageClassName}`} />
+            {/* Load photos only up to one past the furthest swiped to. */}
+            {i <= reached + 1 && <ItemImage item={item} photo={photo} className={`absolute inset-0 h-full w-full ${imageClassName}`} />}
           </div>
         ))}
       </div>
