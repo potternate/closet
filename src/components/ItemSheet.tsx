@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { imageBlob, type PhotoInput } from '../lib/store'
-import { formatPrice, itemColors, itemPhotos, type Draft, type Item } from '../lib/types'
-import { costPerWear, dayKey, wearCount, wornLabel } from '../lib/wear'
+import { ARCHIVE_REASONS, formatPrice, itemColors, itemPhotos, type ArchiveReason, type Draft, type Item } from '../lib/types'
+import { costPerWear, dayKey, dayLabel, wearCount, wornLabel } from '../lib/wear'
 import { Swatch } from './Chips'
 import { ItemEditor } from './ItemEditor'
 import { ItemImage } from './ItemImage'
@@ -14,6 +14,8 @@ interface Props {
   onToggleWorn: (worn: boolean) => void
   onLogDay?: (day: string) => void
   onBought: () => void
+  onArchive: (reason: ArchiveReason) => void
+  onRestore: () => void
   onClose: () => void
 }
 
@@ -25,10 +27,11 @@ function hostOf(url: string) {
   }
 }
 
-export function ItemSheet({ item, onSave, onDelete, onToggleWorn, onLogDay, onBought, onClose }: Props) {
+export function ItemSheet({ item, onSave, onDelete, onToggleWorn, onLogDay, onBought, onArchive, onRestore, onClose }: Props) {
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [duplicating, setDuplicating] = useState(false)
+  const [archiving, setArchiving] = useState(false)
 
   if (editing) {
     const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, image: _image, photos: _photos, ...draft } = item
@@ -74,7 +77,19 @@ export function ItemSheet({ item, onSave, onDelete, onToggleWorn, onLogDay, onBo
         )}
       </div>
 
-      {item.wishlist ? (
+      {item.archived ? (
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-stone-50 py-2.5 pr-2.5 pl-3.5 ring-1 ring-stone-100">
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-stone-800">Archived{item.archiveReason ? ` · ${item.archiveReason}` : ''}</div>
+            <div className="text-xs text-stone-500">
+              {dayLabel(item.archived)} · {wearCount(item) ? `worn ${wearCount(item) === 1 ? 'once' : `${wearCount(item)} times`}` : 'never worn'}
+            </div>
+          </div>
+          <button onClick={onRestore} className="shrink-0 rounded-xl bg-stone-900 px-4 py-2.5 text-sm font-semibold text-stone-50">
+            Restore
+          </button>
+        </div>
+      ) : item.wishlist ? (
         <button onClick={onBought} className="mt-4 w-full rounded-2xl bg-emerald-600 py-3 font-semibold text-white active:bg-emerald-700">
           Bought it · move to closet
         </button>
@@ -127,11 +142,36 @@ export function ItemSheet({ item, onSave, onDelete, onToggleWorn, onLogDay, onBo
         {duplicating ? 'Duplicating…' : 'Duplicate item'}
       </button>
 
+      {archiving && (
+        <div className="mt-4 rounded-2xl bg-stone-50 p-3.5 ring-1 ring-stone-100">
+          <div className="text-sm font-semibold text-stone-800">Why is it leaving the closet?</div>
+          <p className="text-xs text-stone-500">It keeps its photos and wear history, and stops counting as something you own.</p>
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            {ARCHIVE_REASONS.map((reason) => (
+              <button
+                key={reason}
+                onClick={() => {
+                  onArchive(reason)
+                  setArchiving(false)
+                }}
+                className="rounded-full bg-surface px-3.5 py-1.5 text-sm font-semibold text-stone-700 ring-1 ring-stone-200 active:bg-stone-100"
+              >
+                {reason}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="mt-5 grid grid-cols-2 gap-3">
         <button onClick={() => setEditing(true)} className="rounded-xl bg-stone-900 py-3 font-semibold text-stone-50">
           Edit
         </button>
-        {confirmDelete ? (
+        {!item.wishlist && !item.archived && !confirmDelete ? (
+          <button onClick={() => setArchiving(!archiving)} aria-expanded={archiving} className="rounded-xl bg-stone-100 py-3 font-semibold text-stone-800">
+            Archive
+          </button>
+        ) : confirmDelete ? (
           <button
             onClick={() => {
               onDelete(item)
@@ -147,6 +187,11 @@ export function ItemSheet({ item, onSave, onDelete, onToggleWorn, onLogDay, onBo
           </button>
         )}
       </div>
+      {!item.wishlist && !item.archived && !confirmDelete && (
+        <button onClick={() => setConfirmDelete(true)} className="mt-3 w-full py-1 text-sm font-semibold text-rose-600">
+          Delete instead
+        </button>
+      )}
     </Sheet>
   )
 }

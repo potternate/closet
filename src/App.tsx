@@ -36,13 +36,18 @@ export default function App() {
   const [outfitEditor, setOutfitEditor] = useState<{ existing?: Outfit; initialIds?: string[] }>()
   const [selected, setSelected] = useState<string[]>()
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
+  const [showArchived, setShowArchived] = useState(false)
 
   useEffect(() => {
     if (shared) history.replaceState(null, '', location.pathname)
   }, [shared])
 
-  const owned = useMemo(() => closet.items.filter((item) => !item.wishlist), [closet.items])
-  const days = useMemo(() => wornDays(owned), [owned])
+  const owned = useMemo(() => closet.items.filter((item) => !item.wishlist && !item.archived), [closet.items])
+  const archived = useMemo(
+    () => closet.items.filter((item) => !item.wishlist && item.archived).sort((a, b) => (b.archived ?? '').localeCompare(a.archived ?? '')),
+    [closet.items],
+  )
+  const days = useMemo(() => wornDays(closet.items.filter((item) => !item.wishlist)), [closet.items])
   const wanted = useMemo(() => closet.items.filter((item) => item.wishlist), [closet.items])
   const wantedTotal = useMemo(() => {
     const priced = wanted.filter((item) => item.price !== undefined)
@@ -106,7 +111,7 @@ export default function App() {
         </button>
       </header>
 
-      {tab === 'closet' && owned.length > 0 && (
+      {tab === 'closet' && owned.length > 0 && !showArchived && (
         <>
           <div className="mt-4 flex gap-2">
             <label className="flex flex-1 items-center gap-2 rounded-xl bg-surface px-3 ring-1 ring-stone-200 focus-within:ring-2 focus-within:ring-stone-900">
@@ -227,6 +232,22 @@ export default function App() {
           onOpen={(outfit) => setOpenOutfitId(outfit.id)}
           onShuffle={() => setOutfitEditor({ initialIds: shuffleOutfit(owned).map((item) => item.id) })}
         />
+      ) : showArchived ? (
+        <>
+          <div className="mt-4 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-stone-500">
+              Archived <span className="text-stone-400">{archived.length}</span>
+            </h2>
+            <button onClick={() => setShowArchived(false)} className="text-sm font-semibold text-stone-800">
+              Back to closet
+            </button>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {archived.map((item) => (
+              <ItemCard key={item.id} item={item} detail={[item.archiveReason, item.archived].filter(Boolean).join(' · ')} onOpen={() => setOpenId(item.id)} />
+            ))}
+          </div>
+        </>
       ) : owned.length === 0 ? (
         <EmptyState onAdd={() => setAdding(true)} />
       ) : visible.length === 0 ? (
@@ -258,6 +279,12 @@ export default function App() {
         ))
       )}
 
+      {tab === 'closet' && !showArchived && !selected && archived.length > 0 && (
+        <button onClick={() => setShowArchived(true)} className="mt-6 w-full rounded-xl bg-surface py-3 text-sm font-semibold text-stone-600 ring-1 ring-stone-200">
+          Archived · {archived.length} {archived.length === 1 ? 'item' : 'items'} you no longer have
+        </button>
+      )}
+
       {tab === 'closet' && selected && selected.length > 0 && (
         <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full bg-surface py-2 pr-2 pl-4 shadow-xl ring-1 ring-stone-200">
           <span className="text-sm font-semibold text-stone-800">{selected.length}</span>
@@ -287,7 +314,7 @@ export default function App() {
         </div>
       )}
 
-      {!(tab === 'closet' && selected?.length) && tab !== 'stats' && tab !== 'worn' && (tab !== 'outfits' || owned.length > 0) && (
+      {!(tab === 'closet' && (selected?.length || showArchived)) && tab !== 'stats' && tab !== 'worn' && (tab !== 'outfits' || owned.length > 0) && (
         <button
           onClick={() => (tab === 'outfits' ? setOutfitEditor({}) : setAdding(true))}
           className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full bg-stone-900 py-3.5 pr-6 pl-5 font-semibold text-stone-50 shadow-xl shadow-stone-900/25 active:scale-95"
@@ -309,7 +336,7 @@ export default function App() {
           ).map(([id, label, Icon]) => (
             <button
               key={id}
-              onClick={() => setTab(id)}
+              onClick={() => (setTab(id), setShowArchived(false))}
               aria-current={tab === id ? 'page' : undefined}
               className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold ${tab === id ? 'text-stone-900' : 'text-stone-400'}`}
             >
@@ -347,6 +374,8 @@ export default function App() {
           onToggleWorn={(worn) => closet.setWorn([openItem.id], dayKey(), worn)}
           onLogDay={(day) => closet.setWorn([openItem.id], day, true)}
           onBought={() => closet.patchItem(openItem.id, { wishlist: false })}
+          onArchive={(archiveReason) => closet.patchItem(openItem.id, { archived: dayKey(), archiveReason })}
+          onRestore={() => closet.patchItem(openItem.id, { archived: undefined, archiveReason: undefined })}
         />
       )}
       {outfitEditor && (

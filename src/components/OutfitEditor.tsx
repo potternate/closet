@@ -22,7 +22,7 @@ export function OutfitEditor({ items, existing, initialIds, onSave, onCancel }: 
 
   const byId = useMemo(() => new Map(items.map((item) => [item.id, item])), [items])
   const pieces = sortForOutfit(selected.map((id) => byId.get(id)).filter((item): item is Item => Boolean(item)))
-  const pickable = items.filter((item) => !item.wishlist || selected.includes(item.id))
+  const pickable = items.filter((item) => (!item.wishlist && !item.archived) || selected.includes(item.id))
   const categories = CATEGORIES.filter((candidate) => pickable.some((item) => item.category === candidate))
   const shown = category === 'All' ? pickable : pickable.filter((item) => item.category === category)
 
