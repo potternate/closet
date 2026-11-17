@@ -91,8 +91,8 @@ function checkDraft(body: Record<string, unknown>) {
     draft[key] = value
   }
   if (body.styles !== undefined) {
-    const styles = Array.isArray(body.styles) ? body.styles.map((style) => pick(STYLES, style)) : [undefined]
-    if (styles.includes(undefined)) throw new FetchError(`styles must be a list of: ${STYLES.join(', ')}`, 400)
+    const styles = body.styles === null ? [] : Array.isArray(body.styles) ? body.styles.map((style) => pick(STYLES, style)) : [undefined]
+    if (styles.includes(undefined)) throw new FetchError(`styles must be null or a list of: ${STYLES.join(', ')}`, 400)
     draft.styles = [...new Set(styles)]
   }
   // `colors` is the full list (first = primary); `color` alone sets a single color.
