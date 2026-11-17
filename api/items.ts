@@ -196,7 +196,7 @@ async function deleteImage(storagePath: string) {
   }).catch(() => undefined)
 }
 
-// GET filters: ?q=words&category=Shoes&color=Black&brand=nike&wishlist=true|false&archived=false|true|all
+// GET filters: ?q=words&category=Shoes&color=Black&brand=nike&wishlist=true|false&archived=false|true|all&missing=size|price|brand
 function filterItems(items: Record<string, unknown>[], params: URLSearchParams) {
   const text = (value: unknown) => (typeof value === 'string' ? value.toLowerCase() : '')
   const loose = (value: unknown) => text(value).replace(/['’`.]/g, '')
@@ -211,6 +211,8 @@ function filterItems(items: Record<string, unknown>[], params: URLSearchParams) 
   }
   const archived = params.get('archived')?.toLowerCase() ?? 'false'
   if (!['true', 'false', 'all'].includes(archived)) throw new FetchError('archived must be true, false or all', 400)
+  const missing = params.get('missing')?.toLowerCase()
+  if (missing && !['size', 'price', 'brand'].includes(missing)) throw new FetchError('missing must be size, price or brand', 400)
   return items.filter((item) => {
     if (category && text(item.category) !== category) return false
     if (color && !colorsOf(item).some((name) => text(name) === color)) return false
@@ -218,6 +220,7 @@ function filterItems(items: Record<string, unknown>[], params: URLSearchParams) 
     if (wishlist === 'true' && item.wishlist !== true) return false
     if (wishlist === 'false' && item.wishlist === true) return false
     if (archived !== 'all' && Boolean(item.archived) !== (archived === 'true')) return false
+    if (missing && !missingFields(item).includes(missing as 'size')) return false
     const haystack = [...['name', 'brand', 'category', 'subtype', 'material', 'pattern', 'formality', 'fit', 'size', 'notes'].map((key) => item[key]), ...colorsOf(item), ...(Array.isArray(item.styles) ? item.styles : [])].map(loose).join(' ')
     return words.every((word) => haystack.includes(word))
   })
