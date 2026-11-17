@@ -15,7 +15,7 @@ import { OutfitsView } from './components/OutfitsView'
 import { WornDaySheet, WornView } from './components/WornView'
 import { Sheet } from './components/Sheet'
 import { shuffleOutfit, type Outfit } from './lib/outfits'
-import { dayKey, groupItems, SORTS, sortItemsBy, wearCount, wornDays, wornLabel, type SortKey } from './lib/wear'
+import { dayKey, dayLabel, groupItems, SORTS, sortItemsBy, wearCount, wornDays, wornLabel, type SortKey } from './lib/wear'
 
 export default function App() {
   const auth = useAuth()
@@ -244,7 +244,7 @@ export default function App() {
           </div>
           <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
             {archived.map((item) => (
-              <ItemCard key={item.id} item={item} detail={[item.archiveReason, item.archived].filter(Boolean).join(' · ')} onOpen={() => setOpenId(item.id)} />
+              <ItemCard key={item.id} item={item} detail={[item.archiveReason, item.archived && dayLabel(item.archived)].filter(Boolean).join(' · ')} onOpen={() => setOpenId(item.id)} />
             ))}
           </div>
         </>
