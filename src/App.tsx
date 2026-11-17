@@ -17,7 +17,7 @@ import { Sheet } from './components/Sheet'
 import { shuffleOutfit, type Outfit } from './lib/outfits'
 import { dayKey, dayLabel, groupItems, SORTS, sortItemsBy, wearCount, wornDays, wornLabel, type SortKey } from './lib/wear'
 
-const KEPT_ON_REIMPORT = ['archived', 'archiveReason', 'subtype', 'material', 'pattern', 'fit', 'formality', 'styles'] as const
+const KEPT_ON_REIMPORT = ['size', 'archived', 'archiveReason', 'subtype', 'material', 'pattern', 'fit', 'formality', 'styles'] as const
 
 export default function App() {
   const auth = useAuth()
@@ -352,6 +352,7 @@ export default function App() {
       {adding && (
         <AddSheet
           title={tab === 'wishlist' ? 'Add to wishlist' : 'Add to closet'}
+          owned={owned}
           initialLink={shared?.text}
           onClose={() => {
             setAdding(false)

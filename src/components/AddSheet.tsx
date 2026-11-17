@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { extractLinks } from '../lib/links'
 import { fetchProductImage, importProduct, type ProductInfo } from '../lib/productImport'
-import { emptyDraft, guessBrand, guessCategory, matchColor, type Draft } from '../lib/types'
+import { emptyDraft, guessBrand, guessCategory, matchColor, type Draft, type Item } from '../lib/types'
 import { prepareImage } from '../lib/images'
 import type { PhotoInput } from '../lib/store'
 import { ItemEditor, type EditorSource } from './ItemEditor'
@@ -13,6 +13,7 @@ interface Props {
   onClose: () => void
   initialLink?: string
   title?: string
+  owned?: Item[]
 }
 
 const productDraft = (product: ProductInfo): Draft => {
@@ -40,7 +41,7 @@ async function firstImage(urls: string[]) {
   return undefined
 }
 
-export function AddSheet({ onSave, onClose, initialLink, title = 'Add to closet' }: Props) {
+export function AddSheet({ onSave, onClose, initialLink, title = 'Add to closet', owned }: Props) {
   const [link, setLink] = useState(initialLink ?? '')
   const [importing, setImporting] = useState(false)
   const [error, setError] = useState<string>()
@@ -116,7 +117,7 @@ export function AddSheet({ onSave, onClose, initialLink, title = 'Add to closet'
   return (
     <Sheet onClose={onClose}>
       {source ? (
-        <ItemEditor source={source} saveLabel={title} onCancel={() => setSource(undefined)} onSave={async (draft, photos) => {
+        <ItemEditor source={source} saveLabel={title} owned={owned} onCancel={() => setSource(undefined)} onSave={async (draft, photos) => {
           await onSave(draft, photos)
           onClose()
         }} />

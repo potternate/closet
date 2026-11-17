@@ -20,6 +20,8 @@ interface Props {
   onSave: (draft: Draft, photos: PhotoInput[] | undefined, existing?: Item) => Promise<unknown>
   saveLabel?: string
   onCancel: () => void
+  // Owned items, for suggesting the sizes already worn in this category.
+  owned?: Item[]
 }
 
 // One photo in the editor: either already saved on the item, or freshly prepared here.
@@ -39,6 +41,17 @@ const toolClass =
   'flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-stone-100 py-2.5 text-sm font-semibold text-stone-700 active:bg-stone-200 disabled:opacity-50'
 
 const MAX_PHOTOS = 8
+const NUDGE = 'ring-2 ring-amber-400'
+
+// Sizes already owned in a category, most common first.
+function sizesFor(category: string, owned: Item[]) {
+  const counts = new Map<string, number>()
+  for (const item of owned) {
+    const size = item.size?.trim()
+    if (item.category === category && size) counts.set(size, (counts.get(size) ?? 0) + 1)
+  }
+  return [...counts].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([size]) => size)
+}
 
 function useBlobUrl(blob: Blob | undefined) {
   const [url, setUrl] = useState<string>()
@@ -71,7 +84,7 @@ function SlotImage({ slot, item, className, dim }: { slot: Slot; item?: Item; cl
   return null
 }
 
-export function ItemEditor({ source, onSave, onCancel, saveLabel = 'Add to closet' }: Props) {
+export function ItemEditor({ source, onSave, onCancel, saveLabel = 'Add to closet', owned = [] }: Props) {
   const [draft, setDraft] = useState<Draft>(source.draft)
   const [slots, setSlots] = useState<Slot[]>(() => {
     if (source.file || source.imageUrls?.length) return [{ key: crypto.randomUUID(), loading: true }]
@@ -81,6 +94,7 @@ export function ItemEditor({ source, onSave, onCancel, saveLabel = 'Add to close
   const [imageError, setImageError] = useState<string>()
   const [cuts, setCuts] = useState<Record<string, number>>({})
   const [saving, setSaving] = useState(false)
+  const [nudged, setNudged] = useState(false)
   const [priceText, setPriceText] = useState(source.draft.price?.toString() ?? '')
   const colorTouched = useRef(itemColors(source.draft).length > 0)
   const fileInput = useRef<HTMLInputElement>(null)
@@ -195,6 +209,8 @@ export function ItemEditor({ source, onSave, onCancel, saveLabel = 'Add to close
   const photos = slots.flatMap((slot): PhotoInput[] => (slot.image ? [slot.image] : slot.saved ? [slot.saved] : []))
   const canSave = !saving && !busy && (photos.length > 0 || Boolean(draft.name.trim()))
   const full = slots.length >= MAX_PHOTOS
+  const missing = source.existing ? [] : [!draft.size?.trim() && 'size', draft.price === undefined && 'price'].filter((field): field is string => Boolean(field))
+  const sizeHints = sizesFor(draft.category, owned)
 
   const toggleBackground = async (slot: Slot) => {
     if (isCutOut && slot.original) {
@@ -230,7 +246,10 @@ export function ItemEditor({ source, onSave, onCancel, saveLabel = 'Add to close
     <form
       onSubmit={(event) => {
         event.preventDefault()
-        if (canSave) void save()
+        if (!canSave) return
+        // New items get one reminder to add size and price; a second tap saves without them.
+        if (missing.length && !nudged) return setNudged(true)
+        void save()
       }}
     >
       <div className="flex items-center justify-between">
@@ -239,7 +258,7 @@ export function ItemEditor({ source, onSave, onCancel, saveLabel = 'Add to close
         </button>
         <h2 className="text-base font-bold text-stone-900">{source.existing ? 'Edit item' : 'New item'}</h2>
         <button type="submit" disabled={!canSave} className="rounded-full bg-stone-900 px-4 py-1.5 text-sm font-semibold text-stone-50 disabled:opacity-40">
-          {saving ? 'Saving…' : 'Save'}
+          {saving ? 'Saving…' : nudged && missing.length ? 'Save anyway' : 'Save'}
         </button>
       </div>
 
@@ -409,12 +428,21 @@ export function ItemEditor({ source, onSave, onCancel, saveLabel = 'Add to close
         </label>
         <label className="block text-sm font-semibold text-stone-700">
           Size
-          <input className={inputClass} value={draft.size ?? ''} onChange={(event) => update({ size: event.target.value || undefined })} />
+          <input className={`${inputClass} ${nudged && missing.includes('size') ? NUDGE : ''}`} value={draft.size ?? ''} placeholder={sizeHints[0] ? `e.g. ${sizeHints[0]}` : undefined} onChange={(event) => update({ size: event.target.value || undefined })} />
         </label>
+        {!draft.size && sizeHints.length > 0 && (
+          <div className="-mt-2 flex flex-wrap gap-2">
+            {sizeHints.map((size) => (
+              <Chip key={size} active={false} onClick={() => update({ size })}>
+                {size}
+              </Chip>
+            ))}
+          </div>
+        )}
         <label className="block text-sm font-semibold text-stone-700">
           Price
           <input
-            className={inputClass}
+            className={`${inputClass} ${nudged && missing.includes('price') ? NUDGE : ''}`}
             inputMode="decimal"
             value={priceText}
             onChange={(event) => {
@@ -490,8 +518,11 @@ export function ItemEditor({ source, onSave, onCancel, saveLabel = 'Add to close
         <textarea rows={2} className={inputClass} value={draft.notes ?? ''} onChange={(event) => update({ notes: event.target.value || undefined })} />
       </label>
 
+      {nudged && missing.length > 0 && (
+        <p className="mt-4 text-sm text-amber-600">Add the {missing.join(' and ')} so your muse knows what fits and what you paid.</p>
+      )}
       <button type="submit" disabled={!canSave} className="mt-6 w-full rounded-xl bg-stone-900 py-3.5 font-semibold text-stone-50 disabled:opacity-40">
-        {saving ? 'Saving…' : working ? 'Removing background…' : source.existing ? 'Save changes' : saveLabel}
+        {saving ? 'Saving…' : working ? 'Removing background…' : source.existing ? 'Save changes' : nudged && missing.length ? 'Save anyway' : saveLabel}
       </button>
     </form>
   )
