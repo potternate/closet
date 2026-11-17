@@ -313,9 +313,11 @@ export function useCloset(userId: string | undefined, authLoading: boolean) {
         : previous
       const removed = previous.filter((photo) => !next.some((kept) => kept.id === photo.id))
       for (const photo of removed) void deleteLocalImage(photo.id)
+      const previous = stateRef.current.items.find((candidate) => candidate.id === existing?.id)
       const item: Item = {
         ...draft,
-        wears: stateRef.current.items.find((candidate) => candidate.id === existing?.id)?.wears ?? draft.wears,
+        wears: previous?.wears ?? draft.wears,
+        wearNotes: previous?.wearNotes ?? draft.wearNotes,
         name: draft.name.trim() || draft.category,
         id: existing?.id ?? crypto.randomUUID(),
         ...withPhotos(next),
