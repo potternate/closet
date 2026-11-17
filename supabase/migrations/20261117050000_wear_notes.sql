@@ -19,7 +19,7 @@ begin
   end if;
   if jsonb_typeof(item_ids) <> 'array' then raise exception 'item_ids must be an array'; end if;
   for iid in select jsonb_array_elements_text(item_ids) loop
-    select data into w from closet_items where user_id = u and id = iid::uuid and not deleted;
+    select data into w from closet_items where user_id = u and id = iid::uuid and not deleted for update;
     if not found then raise exception 'item not found: %', iid; end if;
     has_day := coalesce(jsonb_typeof(w->'wears') = 'array' and w->'wears' @> to_jsonb(day), false);
     if not has_day or (wn <> '{}'::jsonb and w #> array['wearNotes', day] is distinct from wn) then
