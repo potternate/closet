@@ -24,6 +24,15 @@ export const COLORS = [
 ] as const
 export type ColorName = (typeof COLORS)[number]['name']
 
+export const PATTERNS = ['Solid', 'Striped', 'Plaid', 'Check', 'Graphic', 'Print', 'Floral', 'Camo', 'Colorblock', 'Textured', 'Other'] as const
+export type Pattern = (typeof PATTERNS)[number]
+export const FORMALITIES = ['Casual', 'Smart casual', 'Business', 'Formal'] as const
+export type Formality = (typeof FORMALITIES)[number]
+export const FITS = ['Slim', 'Regular', 'Relaxed', 'Oversized'] as const
+export type Fit = (typeof FITS)[number]
+export const STYLES = ['Streetwear', 'Minimal', 'Classic', 'Outdoor', 'Workwear', 'Athletic', 'Techwear', 'Preppy', 'Vintage', 'Statement'] as const
+export type Style = (typeof STYLES)[number]
+
 export const ARCHIVE_REASONS = ['Sold', 'Donated', 'Gave away', 'Lost', 'Worn out', 'Returned', 'Other'] as const
 export type ArchiveReason = (typeof ARCHIVE_REASONS)[number]
 
@@ -44,6 +53,12 @@ export interface Item {
   price?: number
   currency?: string
   seasons: Season[]
+  subtype?: string | null
+  material?: string | null
+  pattern?: Pattern | null
+  formality?: Formality | null
+  fit?: Fit | null
+  styles?: Style[]
   url?: string
   notes?: string
   wears?: string[]

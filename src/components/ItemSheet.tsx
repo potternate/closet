@@ -55,6 +55,12 @@ export function ItemSheet({ item, onSave, onDelete, onToggleWorn, onLogDay, onBo
     ['Price', formatPrice(item.price, item.currency)],
     ['Cost per wear', formatPrice(costPerWear(item), item.currency)],
     ['Seasons', item.seasons.length ? item.seasons.join(', ') : undefined],
+    ['Type', item.subtype],
+    ['Material', item.material],
+    ['Pattern', item.pattern],
+    ['Fit', item.fit],
+    ['Formality', item.formality],
+    ['Style', item.styles?.length ? item.styles.join(', ') : undefined],
   ].filter((entry): entry is [string, string] => Boolean(entry[1]))
 
   return (
