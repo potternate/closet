@@ -10,7 +10,8 @@ async function fillFromLink(draft: Record<string, unknown>) {
   if (!product) return
   if (draft.price === undefined && product.price !== undefined) {
     draft.price = product.price
-    draft.currency ??= product.currency
+    // The page's currency is the one that price is in, whatever the caller assumed.
+    if (product.currency) draft.currency = product.currency
   }
   if (!draft.brand && product.brand) draft.brand = product.brand
 }
